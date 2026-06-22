@@ -139,11 +139,19 @@
 
 ### 4.7 我的页面（精简版）
 
-- 头像/昵称/等级/评分
+- 头像/昵称/评分
 - 数据统计：发起/参与/好评率/鸽子
 - 入口：我的圈子、评价记录、设置
 
-### 4.8 新手引导
+### 4.8 设置页
+
+- 隐私设置：隐身模式开关、匿名加入默认开关
+- 通知设置：圈子消息提醒
+- 账号安全：绑定/更换手机号
+- 关于：版本号、用户协议、隐私政策
+- 注销账号
+
+### 4.9 新手引导
 
 3屏引导 → 获取位置权限 → 微信登录 → 兴趣标签选择 → 进入首页
 
@@ -165,10 +173,10 @@
 
 ## 六、传播机制
 
-- **"帮我组局"分享**：创建圈子后生成分享图 → 微信/朋友圈 → 跳App加入
-- **活动卡片留念**：活动结束后自动生成战绩卡片（类型/地点/日期/队友），用户自发截图分享
+- **"帮我组局"分享**：创建圈子后 Flutter 端 widget 截图生成分享图 → 微信/朋友圈 → 跳App加入
+- **活动卡片留念**：活动结束后 Flutter 端自动生成战绩卡片（类型/地点/日期/队友），用户自发截图分享
 - **实时社交证明**：首页展示"附近有XX人在组局""今天已有XX个圈子成局"
-- **邀请激励**：邀请新用户双方各得经验值加成
+- **邀请激励**：邀请新用户双方各获得信用档案优质标记（提升"新来城市型"用户的信任度）
 
 ---
 
@@ -198,8 +206,9 @@ Docker Compose:
 
 ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
 │  Nginx   │  │ NestJS   │  │ NestJS   │  │  Admin   │
-│  反向代理 │  │ api      │  │ worker   │  │  React   │
-│  :80     │  │ :3000    │  │ (定时任务)│  │ 静态文件  │
+│ 反向代理  │  │ api      │  │ worker   │  │  React   │
+│ SSL终止  │  │ :3000    │  │ (定时任务)│  │ 静态文件  │
+│ :80→443  │  │          │  │          │  │          │
 └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────────┘
      │             │             │
      └─────────────┼─────────────┘
@@ -271,7 +280,7 @@ circle_members (
 -- 圈子消息
 circle_messages (id, circle_id, user_id, type, content, image_url, 
                  is_recalled boolean default false, created_at)
--- type: text | image | system | recall
+-- type: text | image | system
 
 -- 评价
 user_reviews (id, circle_id, reviewer_id, target_user_id, rating, comment)
@@ -315,7 +324,7 @@ GET    /api/v1/circles/:id
 POST   /api/v1/circles              # 创建
 PATCH  /api/v1/circles/:id          # 编辑
 DELETE /api/v1/circles/:id          # 解散
-POST   /api/v1/circles/:id/join
+POST   /api/v1/circles/:id/join     # body: { anonymous?: boolean }
 POST   /api/v1/circles/:id/leave
 GET    /api/v1/circles/:id/members
 GET    /api/v1/circles/:id/messages # 历史消息 ?before=&limit=50
@@ -431,6 +440,7 @@ GET    /api/health
 ### 8.3 可靠性
 
 - Docker Compose `restart: always`
+- Nginx SSL 终止（Let's Encrypt 免费证书，certbot 自动续期）
 - 健康检查端点 `/api/health`
 - 每日凌晨3点 pg_dump → COS，保留7天
 - Sentry 错误监控
