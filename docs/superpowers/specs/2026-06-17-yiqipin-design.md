@@ -1,6 +1,6 @@
 # 一起拼 — 产品设计规格书
 
-> 版本: v1.0 | 日期: 2026-06-17 | 状态: 已确认
+> 版本: v1.1 | 日期: 2026-06-22 | 状态: 已确认（架构审查后修订）
 
 ---
 
@@ -58,11 +58,11 @@
 | 圈子浏览 | 圆盘卡片（探探式滑动）+ 列表模式切换、顶部搜索+筛选（类型/距离/时间）|
 | 圈子 | 创建（3步极简）、加入/退出、100人上限、活动类型分类、即时/预约标签 |
 | 生命周期 | 活动时间+24h后自动解散、支持一键扩大搜索范围 |
-| 聊天 | 文字+图片+表情、WebSocket实时推送、系统消息混排、敏感词拦截、快捷短语 |
+| 聊天 | 文字+图片+表情、WebSocket实时推送、系统消息混排、敏感词拦截、快捷短语、消息撤回（5分钟内）|
 | 信用 | 互评1-5星、好评率展示、鸽子记录、新用户24h观察期 |
 | 审核 | 举报→人工审核→三档处罚（警告/禁言/封号）|
 | 支付 | 微信支付 + 支付宝（预留，v1仅保留扩展点）|
-| 管理后台 | React Web：用户管理、圈子管理、举报审核 |
+| 管理后台 | React Web：用户管理、圈子管理、举报审核、敏感词库管理 |
 
 ### 3.2 v2 预留功能
 
@@ -128,6 +128,7 @@
 - 系统消息混排（灰色小字区分）
 - 快捷表情栏
 - 快捷短语："我在路上""我到了""还有位置吗""+1"
+- 长按自己消息可撤回（5分钟内），撤回后显示"消息已撤回"
 - 圈子解散后输入框变灰："圈子已结束，无法发言"
 
 ### 4.6 消息Tab
@@ -177,7 +178,7 @@
 
 | 层 | 选型 |
 |----|------|
-| App | Flutter + Riverpod（状态管理）|
+| App | Flutter + Riverpod（状态管理）+ flutter_secure_storage（Token存储）|
 | 后端 | NestJS + TypeScript（模块化单体）|
 | 数据库 | PostgreSQL 15 + PostGIS 3 |
 | 缓存 | Redis 7 |
@@ -239,7 +240,7 @@ src/
 ```sql
 -- 用户
 users (id, wechat_openid, phone, nickname, avatar, interests[], 
-       role, created_at)
+       role, is_anonymous, created_at, deleted_at)
 
 -- 用户信用档案
 user_profiles (user_id, rating_avg, total_ratings, pigeon_count, 
@@ -248,10 +249,10 @@ user_profiles (user_id, rating_avg, total_ratings, pigeon_count,
 -- 活动分类
 categories (id, name, icon, parent_id, sort)
 
--- 圈子 (PostGIS空间索引)
+-- 圈子 (PostGIS空间索引，存储GCJ-02坐标)
 circles (
   id, creator_id, category_id, title, description, cover_image,
-  location geography(Point, 4326),
+  location geography(Point, 0),        -- GCJ-02坐标系(SRID=0)，非WGS-84
   address text, range_km decimal(3,1) default 3,
   max_members int, start_time timestamp,
   start_type enum('now','today','tomorrow','custom'),
@@ -263,11 +264,14 @@ CREATE INDEX idx_circles_start_time ON circles(start_time);
 CREATE INDEX idx_circles_status ON circles(status) WHERE status='active';
 
 -- 圈子成员
-circle_members (circle_id, user_id, role, joined_at)
+circle_members (
+  circle_id, user_id, role, joined_at, last_read_at
+)
 
 -- 圈子消息
-circle_messages (id, circle_id, user_id, type, content, image_url, created_at)
--- type: text | image | system
+circle_messages (id, circle_id, user_id, type, content, image_url, 
+                 is_recalled boolean default false, created_at)
+-- type: text | image | system | recall
 
 -- 评价
 user_reviews (id, circle_id, reviewer_id, target_user_id, rating, comment)
@@ -281,6 +285,10 @@ violation_records (id, user_id, circle_id, msg_id, action, reason,
 reports (id, reporter_id, target_user_id, circle_id, reason, 
          images[], status, handled_by)
 
+-- 敏感词库
+sensitive_words (id, word, level, created_by, created_at)
+-- level: 1(拦截) | 2(需审核)
+
 -- 支付（v1扩展点）
 payments (id, user_id, type, amount, channel, transaction_id, status)
 ```
@@ -292,6 +300,7 @@ payments (id, user_id, type, amount, channel, transaction_id, status)
 POST  /api/v1/auth/wechat-login
 POST  /api/v1/auth/bind-phone
 GET   /api/v1/auth/me
+DELETE /api/v1/auth/me              # 注销账号
 
 # 用户
 GET    /api/v1/users/:id
@@ -309,6 +318,8 @@ DELETE /api/v1/circles/:id          # 解散
 POST   /api/v1/circles/:id/join
 POST   /api/v1/circles/:id/leave
 GET    /api/v1/circles/:id/members
+GET    /api/v1/circles/:id/messages # 历史消息 ?before=&limit=50
+DELETE /api/v1/circles/:id/messages/:msg_id  # 撤回消息（5分钟内）
 POST   /api/v1/circles/:id/checkin  # 签到
 POST   /api/v1/circles/:id/expand   # 扩大搜索范围
 
@@ -333,28 +344,66 @@ GET    /api/health
 连接: ws://host/chat?token={jwt}
 
 客户端 → 服务端:
-  { event: 'send_msg', data: { circle_id, type: 'text'|'image', content, image_url? } }
+  { event: 'send_msg', data: { circle_id, type: 'text'|'image', content, image_url?, 
+                               client_id } }
+                                -- client_id用于ack去重
+  { event: 'recall_msg', data: { circle_id, msg_id } }
 
 服务端 → 客户端:
   { event: 'new_msg', data: { id, circle_id, user, type, content, image_url, created_at } }
+  { event: 'msg_ack', data: { client_id, msg_id } }         -- 消息送达确认
+  { event: 'msg_recalled', data: { circle_id, msg_id } }    -- 消息被撤回
   { event: 'system',  data: { circle_id, action, user?, timestamp } }
   { event: 'error',   data: { code, message } }
   { event: 'muted',   data: { circle_id, until, reason } }
 
-心跳: 30s无消息断开，客户端指数退避重连(1s→2s→4s→30s max)，重连后自动Re-Join
+心跳: 服务端30s无消息断开，客户端每25s发ping
+重连: 指数退避(1s→2s→4s→30s max)，重连后自动Re-Join所有圈子Room
+离线补拉: 重连后客户端传last_msg_time，服务端推送期间错过的消息
 ```
 
-### 7.7 关键架构决策
+### 7.7 WebSocket 消息可靠性
+
+- **ACK机制**: 客户端发消息带 client_id，服务端落库后回 msg_ack（含 server msg_id），客户端收到ACK才从"发送中"转为"已发送"
+- **离线消息**: 用户不在线时消息照样落库，下次在线通过 HTTP API 补拉历史
+- **撤回**: 5分钟内可撤回，服务端标记 is_recalled=true，广播 msg_recalled 事件
+- **发送中状态**: 客户端先乐观展示"发送中"，收到ACK后确认，5秒未收到ACK则重试
+
+### 7.8 关键架构决策
 
 | 决策 | 说明 |
 |------|------|
+| 坐标系 | 统一使用GCJ-02（火星坐标），PostGIS SRID=0。高德SDK返回GCJ-02，无需转换，避免误差 |
 | api + worker 双实例 | 同一份NestJS代码，环境变量区分角色。api处理HTTP/WS，worker只跑定时任务 |
+| Worker 分布式锁 | Redis 锁防止多 worker 实例重复执行定时任务（`@nestjs/schedule` + Redis）|
 | COS STS临时令牌 | 客户端不持有COS密钥，后端签发STS，直传 |
 | PostGIS查询缓存 | Redis缓存地理位置查询（按网格分桶），TTL 30s |
 | Rate Limiting | 建圈5次/天、发消息1条/秒、举报10次/天 |
+| Token 存储 | Flutter 端使用 flutter_secure_storage 加密存储 JWT |
 | 连接池 | TypeORM max 20连接 |
+| 文件上传限制 | 图片 max 10MB，Nginx `client_max_body_size` + NestJS multer 双重限制 |
 | PgBouncer | 暂不需要，v2评估 |
 | 读写分离 | 暂不需要，v2评估 |
+
+### 7.9 CI/CD 策略
+
+| 环节 | 方案 |
+|------|------|
+| 代码仓库 | GitHub / Gitee |
+| CI | GitHub Actions：每次PR跑 lint + test + build |
+| CD | 手动触发：SSH到CVM → git pull → docker compose up -d --build |
+| 分支策略 | `main` 保护分支，功能在 feature 分支开发，PR合并 |
+| 环境变量 | `.env` 文件不提交，CVM上手动管理，模板文件 `.env.example` 提交 |
+
+### 7.10 测试策略
+
+| 层 | 最低要求 | 框架 |
+|----|----------|------|
+| NestJS 单元测试 | 核心业务逻辑覆盖率 > 60% | Jest（内置）|
+| NestJS 集成测试 | Auth、Circle、Chat 模块各至少 2 条集成用例 | Supertest |
+| Flutter Widget测试 | 关键页面（首页/聊天/创建圈子）各1条 | Flutter Test |
+| 契约测试 | 暂不要求，v2评估 | — |
+| E2E | 暂不要求，v2评估 | — |
 
 ---
 
@@ -362,11 +411,16 @@ GET    /api/health
 
 ### 8.1 安全
 
-- JWT Token 有效期: access 2h / refresh 7d
-- 敏感词库拦截发消息
+- JWT Token 有效期: access 2h / refresh 7d，存储在 flutter_secure_storage
+- 敏感词库拦截发消息（sensitive_words表，管理后台可维护）
 - 位置隐私：对外模糊距离，加入后才展示具体地点
 - 可选隐身模式：可关闭"被发现"
-- 举报需提供理由，恶意举报者反向处罚
+- 可选匿名身份：加入圈子时可选择匿名，对外显示昵称缩写
+- 举报需提供理由 + 可选截图，恶意举报者反向处罚
+- 账号注销：`DELETE /api/v1/auth/me`，软删除，30天后物理清除
+- 图片上传限制：max 10MB，仅允许 jpg/png/gif/webp
+- Nginx `client_max_body_size 10m` + NestJS multer 双重校验
+- 微信 OpenID 不对外暴露，后端映射为内部 user_id
 
 ### 8.2 性能
 
@@ -406,3 +460,4 @@ GET    /api/health
 | 日期 | 变更 |
 |------|------|
 | 2026-06-17 | 初始版本，完整设计规格 |
+| 2026-06-22 | 架构审查修订：坐标系修正(GCJ-02)、消息可靠性(ACK/离线补拉/撤回)、未读计数(last_read_at)、敏感词库、分布式锁、Token安全存储、CI/CD策略、测试策略、账号注销、匿名模式 |
