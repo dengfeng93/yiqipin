@@ -133,14 +133,22 @@
 
 ### 4.4 圈子详情页
 
-- 圈子信息（类型/地点/时间/人数/创建者评分）
-- 成员头像列表
+- 圈子信息（类型/地点/时间/人数/创建者到场率）
+- 成员头像列表（含近期鸽子率标识）
 - 「加入」按钮（核心CTA）
 - 加入后才可见聊天入口
 - 点击地点 → 调起高德地图导航
 - 举报入口
 
-### 4.5 聊天页
+### 4.5 新用户限制
+
+为防恶意注册和刷分，新用户的前24小时：
+- **最多加入1个圈子**（不可同时加入多个）
+- **不可创建圈子**（需满24h后方可创建）
+- **不可发起心愿单候补**
+- 24h后自动解除，个人主页显示"新人友好"徽章直至首次被评价
+
+### 4.6 聊天页
 
 - 文字 + 图片 + 表情
 - 系统消息混排（灰色小字区分）
@@ -150,19 +158,19 @@
 - 圈子解散后输入框变灰："圈子已结束，无法发言"
 - 拼单圈子聊天顶部置顶栏：显示拼单规则
 
-### 4.6 消息Tab
+### 4.7 消息Tab
 
 - 我加入的圈子列表
 - 最后一条消息预览 + 未读红点
 - 已结束的圈子折叠到底部
 
-### 4.7 我的页面（精简版）
+### 4.8 我的页面（精简版）
 
-- 头像/昵称/评分
-- 数据统计：发起/参与/好评率/鸽子
+- 头像/昵称/到场率
+- 数据统计：发起/参与/到场率/近期鸽子
 - 入口：我的圈子、评价记录、设置
 
-### 4.8 设置页
+### 4.9 设置页
 
 - 隐私设置：隐身模式开关、匿名加入默认开关
 - 通知设置：圈子消息提醒
@@ -170,11 +178,11 @@
 - 关于：版本号、用户协议、隐私政策
 - 注销账号
 
-### 4.9 新手引导
+### 4.10 新手引导
 
 3屏引导 → 获取位置权限 → 微信登录 → 兴趣标签选择 → 进入首页
 
-### 4.10 心愿池（冷启动核心机制）
+### 4.11 心愿池（冷启动核心机制）
 
 触发条件：
 - 用户定位后，若3-10km范围内无任何进行中的同城圈子
@@ -199,7 +207,7 @@
 - 有效期：当前时间 + 2小时（强制即时局）
 - 失败处理：创建后30分钟内无人真正点击"加入"落座，圈子自动失效解散，心愿单清空，相关用户收到"心愿未达成，继续等待"提示
 
-### 4.11 活动类型与默认人数上限
+### 4.12 活动类型与默认人数上限
 
 `max_members` 不统一为100，改为动态默认值（用户创建时可手动微调±2人）：
 
@@ -212,7 +220,7 @@
 | 休闲拼单 | 拼奶茶 / 拼外卖 / 拼车 | 6人 | 便于线下分单 |
 | 娱乐社交 | K歌 / 剧本杀 / 桌游 | 8人 | 剧本杀标准配置 |
 
-### 4.12 圈子全生命周期状态流转
+### 4.13 圈子全生命周期状态流转
 
 ```
 创建(Active，准备时间倒计时)
@@ -327,7 +335,7 @@ src/
 ```sql
 -- 用户
 users (id, wechat_openid, phone, nickname, avatar, interests[], 
-       role, is_anonymous, created_at, deleted_at)
+       role, created_at, deleted_at)
 
 -- 用户信用档案
 user_profiles (user_id, showup_rate, showup_count, total_joined,
@@ -365,8 +373,10 @@ CREATE INDEX idx_circles_status ON circles(status) WHERE status IN ('active','pr
 -- 圈子成员
 circle_members (
   circle_id, user_id, role, joined_at, last_read_at,
+  is_anonymous boolean default false,   -- 本次加入是否匿名
   checked_in boolean default false
 )
+CREATE INDEX idx_circle_members_user ON circle_members(user_id);
 
 -- 圈子消息
 circle_messages (id, circle_id, user_id, type, content, image_url, 
@@ -374,6 +384,7 @@ circle_messages (id, circle_id, user_id, type, content, image_url,
                  recall_snapshot jsonb,        -- 撤回时保留快照供举报调证
                  created_at)
 -- type: text | image | system
+CREATE INDEX idx_circle_messages_circle_time ON circle_messages(circle_id, created_at DESC);
 
 -- 评价（简化为到场判定）
 user_reviews (id, circle_id, reviewer_id, target_user_id, 
@@ -459,6 +470,8 @@ GET    /api/health
                                client_id } }
                                 -- client_id用于ack去重
   { event: 'recall_msg', data: { circle_id, msg_id } }
+  { event: 'pull_offline_msg', data: { circle_id, since } }
+                                -- 重连后补拉离线消息
 
 服务端 → 客户端:
   { event: 'new_msg', data: { id, circle_id, user, type, content, image_url, created_at } }
@@ -476,7 +489,7 @@ GET    /api/health
 ### 7.7 WebSocket 消息可靠性
 
 - **ACK机制**: 客户端发消息带 client_id，服务端落库后回 msg_ack（含 server msg_id），客户端收到ACK才从"发送中"转为"已发送"
-- **离线消息**: 用户不在线时消息照样落库，下次在线通过 HTTP API 补拉历史
+- **离线消息**: 用户不在线时消息照样落库，下次WebSocket重连后通过 `pull_offline_msg` 事件统一补拉（不混用HTTP）
 - **撤回**: 2分钟内可撤回，服务端标记 is_recalled=true + 保留 recall_snapshot快照（供举报调证），广播 msg_recalled 事件
 - **发送中状态**: 客户端先乐观展示"发送中"，收到ACK后确认，5秒未收到ACK则重试
 
