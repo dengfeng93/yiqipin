@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module';
 import { AdminModule } from './admin/admin.module';
 import { CircleModule } from './circle/circle.module';
 import { WishpoolModule } from './wishpool/wishpool.module';
+import { ChatModule } from './chat/chat.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
@@ -33,6 +34,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
     AdminModule,
     CircleModule,
     WishpoolModule,
+    ChatModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

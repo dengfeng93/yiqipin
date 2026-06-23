@@ -1,0 +1,13 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ChatGateway } from './chat.gateway';
+import { ChatService } from './chat.service';
+import { CircleMessage } from './entities/circle-message.entity';
+import { CircleMember } from '../circle/entities/circle-member.entity';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([CircleMessage, CircleMember])],
+  providers: [ChatGateway, ChatService],
+  exports: [ChatService, ChatGateway],
+})
+export class ChatModule {}
