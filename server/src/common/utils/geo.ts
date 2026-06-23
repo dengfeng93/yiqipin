@@ -37,6 +37,10 @@ export function isValidCoordinate(lat: number, lng: number): boolean {
  * Generate Redis grid key for PostGIS query caching.
  * Rounds coordinates to 0.01 degree (~1km grid) for cache bucketing.
  */
+export function locationToPoint(lat: number, lng: number): string {
+  return `POINT(${lng} ${lat})`;
+}
+
 export function gridKey(lat: number, lng: number, rangeKm: number): string {
   const precision = rangeKm < 5 ? 100 : rangeKm < 20 ? 10 : 1;
   const gridLat = Math.round(lat * precision) / precision;

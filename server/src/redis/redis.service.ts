@@ -18,6 +18,10 @@ export class RedisService {
     return this.redis.zadd(key, score, member);
   }
 
+  async zrem(key: string, member: string): Promise<number> {
+    return this.redis.zrem(key, member);
+  }
+
   async zrangebyscore(key: string, min: number, max: number): Promise<string[]> {
     return this.redis.zrangebyscore(key, min, max);
   }
