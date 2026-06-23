@@ -6,8 +6,10 @@ import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
+import { CommonModule } from './common/common.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 @Module({
@@ -20,6 +22,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
     }),
     DatabaseModule,
     RedisModule,
+    CommonModule,
     AuthModule,
     UserModule,
   ],
@@ -27,6 +30,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: RateLimitInterceptor },
   ],
 })
 export class AppModule {}
