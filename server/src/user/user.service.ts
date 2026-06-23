@@ -49,6 +49,14 @@ export class UserService {
     return this.profileRepo.findOne({ where: { user_id: userId } });
   }
 
+  async toggleIncognito(userId: string): Promise<boolean> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('用户不存在');
+    const newState = !user.is_incognito;
+    await this.userRepo.update(userId, { is_incognito: newState } as any);
+    return newState;
+  }
+
   async softDelete(userId: string): Promise<void> {
     const user = await this.findById(userId);
     await this.userRepo.softRemove(user);

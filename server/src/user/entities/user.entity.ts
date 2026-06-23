@@ -34,6 +34,9 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   muted_until!: Date;
 
+  @Column({ default: false })
+  is_incognito!: boolean;
+
   @CreateDateColumn()
   created_at!: Date;
 

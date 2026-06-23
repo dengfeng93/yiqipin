@@ -226,3 +226,5 @@ CREATE TABLE reports (
 CREATE INDEX idx_reports_status ON reports(status);
 CREATE INDEX idx_reports_reporter ON reports(reporter_id);
 CREATE INDEX idx_reports_target_user ON reports(target_user_id);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_incognito BOOLEAN DEFAULT FALSE;

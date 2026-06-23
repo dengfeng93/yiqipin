@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -20,6 +20,12 @@ export class UserController {
   @Patch('me')
   async updateMe(@CurrentUser() user: User, @Body() dto: UpdateUserDto) {
     return this.userService.updateMe(user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/incognito')
+  async toggleIncognito(@CurrentUser() user: User) {
+    return this.userService.toggleIncognito(user.id);
   }
 
   @UseGuards(JwtAuthGuard)
