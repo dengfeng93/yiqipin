@@ -134,6 +134,19 @@ export class CircleService {
     return this.memberRepo.find({ where: { circle_id: circleId }, order: { joined_at: 'ASC' as any } });
   }
 
+  async update(circleId: string, userId: string, dto: any) {
+    const circle = await this.findById(circleId);
+    if (circle.creator_id !== userId) throw new ForbiddenException('仅创建者可修改');
+    if (dto.title !== undefined) circle.title = dto.title;
+    if (dto.description !== undefined) circle.description = dto.description;
+    if (dto.address !== undefined) circle.address = dto.address;
+    if (dto.max_members !== undefined) circle.max_members = dto.max_members;
+    if (dto.start_time !== undefined) circle.start_time = dto.start_time;
+    if (dto.cover_image !== undefined) circle.cover_image = dto.cover_image;
+    await this.circleRepo.save(circle);
+    return circle;
+  }
+
   async checkin(circleId: string, userId: string, userLat: number, userLng: number) {
     const circle = await this.findById(circleId);
 

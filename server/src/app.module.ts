@@ -9,6 +9,7 @@ import { UserModule } from './user/user.module';
 import { CommonModule } from './common/common.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './admin/admin.module';
+import { CircleModule } from './circle/circle.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
@@ -29,6 +30,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
     UserModule,
     HealthModule,
     AdminModule,
+    CircleModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
