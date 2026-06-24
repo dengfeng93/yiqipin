@@ -8,6 +8,7 @@ class CircleCard extends StatelessWidget {
   final VoidCallback onJoin;
   final VoidCallback onDetail;
   final VoidCallback onSkip;
+  final bool showHints;
 
   const CircleCard({
     super.key,
@@ -15,6 +16,7 @@ class CircleCard extends StatelessWidget {
     required this.onJoin,
     required this.onDetail,
     required this.onSkip,
+    this.showHints = false,
   });
 
   @override
@@ -83,10 +85,37 @@ class CircleCard extends StatelessWidget {
                   ]),
                 ),
               ],
+              const Spacer(),
+              AnimatedOpacity(
+                opacity: showHints ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.md),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _hint(Icons.arrow_back, '跳过', cs),
+                      _hint(Icons.arrow_upward, '加入', cs),
+                      _hint(Icons.arrow_forward, '查看', cs),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _hint(IconData icon, String label, ColorScheme cs) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: cs.onSurfaceVariant.withOpacity(0.4)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withOpacity(0.4))),
+      ],
     );
   }
 }

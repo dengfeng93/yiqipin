@@ -63,6 +63,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   String? _error;
+  int _swipeHintCount = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -112,9 +113,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                             itemCount: _circles.length,
                             itemBuilder: (_, i) => CircleCard(
                               circle: _circles[i],
-                              onJoin: () => _joinCircle(_circles[i].id),
-                              onDetail: () => Navigator.pushNamed(context, '/circle-detail', arguments: _circles[i].id),
+                              showHints: _swipeHintCount < 3,
+                              onJoin: () {
+                                _swipeHintCount++;
+                                _joinCircle(_circles[i].id);
+                              },
+                              onDetail: () {
+                                _swipeHintCount++;
+                                Navigator.pushNamed(context, '/circle-detail', arguments: _circles[i].id);
+                              },
                               onSkip: () {
+                                _swipeHintCount++;
                                 if (_pageController.hasClients) {
                                   _pageController.nextPage(
                                     duration: const Duration(milliseconds: 300),
