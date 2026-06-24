@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Delete, Body, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { UserService } from '../user/user.service';
 import { WechatLoginDto } from './dto/wechat-login.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -8,7 +9,10 @@ import { User } from '../user/entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+  ) {}
 
   @Public()
   @Post('wechat-login')
@@ -33,8 +37,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Delete('me')
   async deleteMe(@CurrentUser() user: User) {
-    // Soft delete will be implemented in UserService (Task 7)
-    // For now, leave placeholder — it will be wired when UserModule is added
-    throw new Error('Not implemented — requires UserService');
+    await this.userService.softDelete(user.id);
+    return { message: '账号已注销' };
   }
 }

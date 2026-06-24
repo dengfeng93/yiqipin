@@ -14,7 +14,7 @@
 
 8. [ ] 运行 certbot 获取 Let's Encrypt SSL 证书
    ```bash
-   docker compose -f docker-compose.prod.yml run --rm certbot \
+   docker compose -f docker-compose.prod.yml exec nginx certbot \
      certonly --webroot -w /var/www/certbot -d yiqipin.cn -d www.yiqipin.cn
    ```
 9. [ ] 启动所有服务
@@ -36,5 +36,5 @@
 
 Certbot 已配置自动续期，每月1号凌晨3:00执行:
 ```bash
-docker compose -f docker-compose.prod.yml exec certbot certbot renew --quiet
+docker compose -f docker-compose.prod.yml exec nginx certbot renew --quiet
 ```

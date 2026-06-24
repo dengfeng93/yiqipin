@@ -3,9 +3,7 @@ FROM postgres:15-alpine
 RUN apk add --no-cache python3 py3-pip gzip curl && \
     pip3 install cos-python-sdk-v5
 
-COPY scripts/backup.sh /usr/local/bin/backup.sh
-RUN chmod +x /usr/local/bin/backup.sh
-
+# backup.sh and upload_to_cos.py are volume-mounted at runtime via docker-compose
 RUN echo '0 3 * * * /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1' > /etc/crontabs/root
 
 CMD ["crond", "-f", "-l", "2"]

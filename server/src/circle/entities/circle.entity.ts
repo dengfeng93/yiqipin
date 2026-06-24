@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
 export enum CircleStatus {
   ACTIVE = 'active',
@@ -41,7 +41,7 @@ export class Circle {
   @Column({ nullable: true })
   cover_image!: string;
 
-  @Column('geography', { nullable: true })
+  @Column('geography')
   @Index({ spatial: true })
   location!: string;
 
@@ -77,4 +77,7 @@ export class Circle {
 
   @CreateDateColumn()
   created_at!: Date;
+
+  @UpdateDateColumn()
+  updated_at!: Date;
 }

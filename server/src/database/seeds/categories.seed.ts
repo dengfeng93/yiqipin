@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Category } from '../../category/entities/category.entity';
+import { Category } from '../../circle/entities/category.entity';
 
 const CATEGORIES = [
   { name: '篮球', icon: '🏀', sort: 1, default_max_members: 10, wish_threshold: 6 },

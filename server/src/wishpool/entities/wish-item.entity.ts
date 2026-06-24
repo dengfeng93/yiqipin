@@ -17,12 +17,33 @@ export class WishItem {
   @Column()
   category_id!: string;
 
-  @Column('geography', { nullable: true })
+  @Column({ length: 200 })
+  title!: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7 })
+  lat!: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7 })
+  lng!: number;
+
+  @Column('geography')
   @Index({ spatial: true })
   location!: string;
 
-  @Column({ type: 'decimal', precision: 3, scale: 1, default: 5 })
-  range_km!: number;
+  @Column({ default: 3 })
+  max_members!: number;
+
+  @Column({ default: 0 })
+  wish_count!: number;
+
+  @Column({ default: 3 })
+  threshold!: number;
+
+  @Column({ type: 'uuid', nullable: true })
+  converted_circle_id!: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  expires_at!: Date;
 
   @Column({ type: 'enum', enum: WishStatus, default: WishStatus.WAITING })
   status!: WishStatus;

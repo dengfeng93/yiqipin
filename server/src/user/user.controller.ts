@@ -1,19 +1,36 @@
-import { Controller, Get, Patch, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { User } from './entities/user.entity';
+import { NotificationService } from '../notification/notification.service';
 
 @Controller('users')
 export class UserController {
-  constructor(private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    private notificationService: NotificationService,
+  ) {}
 
   @Public()
   @Get(':id')
   async getUser(@Param('id') id: string) {
     return this.userService.findById(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getMe(@CurrentUser() user: User) {
+    const profile = await this.userService.getProfile(user.id);
+    const { wechat_openid, deleted_at, ...safe } = user as any;
+    return {
+      ...safe,
+      total_created: profile?.total_created ?? 0,
+      total_joined: profile?.total_joined ?? 0,
+      showup_rate: profile?.showup_rate ?? 0,
+    };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -38,5 +55,23 @@ export class UserController {
   @Get(':id/reviews')
   async getReviews(@Param('id') id: string) {
     return this.userService.getReviews(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/notifications')
+  async getNotifications(@CurrentUser() user: User, @Query('page') page: number = 1, @Query('limit') limit: number = 20) {
+    return this.notificationService.getUserNotifications(user.id, page, limit);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/notifications/unread-count')
+  async getUnreadCount(@CurrentUser() user: User) {
+    return { count: await this.notificationService.getUnreadCount(user.id) };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/notifications/:id/read')
+  async markRead(@CurrentUser() user: User, @Param('id') notifId: string) {
+    return this.notificationService.markRead(user.id, notifId);
   }
 }

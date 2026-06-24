@@ -4,12 +4,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
 
 class ApiService {
+  static ApiService? _instance;
+  factory ApiService() => _instance ??= ApiService._internal();
+
   late final Dio _dio;
   final _storage = const FlutterSecureStorage();
   bool _isRefreshing = false;
   final _refreshQueue = <Completer<String?>>[];
 
-  ApiService() {
+  ApiService._internal() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 10),
