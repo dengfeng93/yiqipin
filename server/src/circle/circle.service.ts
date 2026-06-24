@@ -176,4 +176,20 @@ export class CircleService {
     );
     return { checked_in: true };
   }
+
+  async search(keyword: string, lat: number, lng: number) {
+    if (!keyword || keyword.trim().length === 0) return [];
+    const point = locationToPoint(lat, lng);
+    return this.circleRepo.createQueryBuilder('c')
+      .where('ST_DWithin(c.location, ST_GeomFromText(:point, 0), 10000)', { point })
+      .andWhere('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
+      .andWhere('(c.title ILIKE :kw OR c.description ILIKE :kw)', { kw: `%${keyword.trim()}%` })
+      .orderBy('c.start_time', 'ASC')
+      .limit(30)
+      .getMany();
+  }
+
+  async getCategories() {
+    return this.categoryRepo.find({ order: { sort: 'ASC' } });
+  }
 }
