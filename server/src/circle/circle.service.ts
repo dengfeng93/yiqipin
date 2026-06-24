@@ -6,6 +6,7 @@ import { CircleMember } from './entities/circle-member.entity';
 import { Category } from './entities/category.entity';
 import { WishItem } from '../wishpool/entities/wish-item.entity';
 import { RedisService } from '../redis/redis.service';
+import { ChatGateway } from '../chat/chat.gateway';
 import { calculateDistance, locationToPoint } from '../common/utils/geo';
 import { CreateCircleDto } from './dto/create-circle.dto';
 
@@ -17,6 +18,7 @@ export class CircleService {
     @InjectRepository(Category) private categoryRepo: Repository<Category>,
     @InjectRepository(WishItem) private wishRepo: Repository<WishItem>,
     private redis: RedisService,
+    private chatGateway: ChatGateway,
   ) {}
 
   async create(userId: string, dto: CreateCircleDto) {
@@ -101,6 +103,12 @@ export class CircleService {
       circle_id: circleId, user_id: userId, is_anonymous: isAnonymous,
     }));
 
+    await this.chatGateway.broadcastSystem(circleId, 'member_joined', {
+      user_id: userId,
+      is_anonymous: isAnonymous,
+      member_count: count + 1,
+    });
+
     return { joined: true, member_count: count + 1 };
   }
 
@@ -109,6 +117,8 @@ export class CircleService {
     if (!member) throw new NotFoundException('你不在该圈子中');
     if (member.role === 'creator') throw new ForbiddenException('创建者不能退出，请解散圈子');
     await this.memberRepo.delete({ circle_id: circleId, user_id: userId });
+
+    await this.chatGateway.broadcastSystem(circleId, 'member_left', { user_id: userId });
     return { left: true };
   }
 
@@ -120,6 +130,9 @@ export class CircleService {
     circle.dissolved_at = new Date();
     await this.circleRepo.save(circle);
     await this.redis.zrem('circles:upcoming', circleId);
+
+    await this.chatGateway.broadcastSystem(circleId, 'circle_dissolved');
+
     return { dissolved: true };
   }
 
@@ -129,6 +142,9 @@ export class CircleService {
     circle.status = CircleStatus.PRIVATE_PERMANENT;
     await this.circleRepo.save(circle);
     await this.redis.zrem('circles:upcoming', circleId);
+
+    await this.chatGateway.broadcastSystem(circleId, 'circle_converted');
+
     return { converted: true };
   }
 

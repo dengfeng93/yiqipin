@@ -174,6 +174,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('offline_msgs', { circle_id: data.circle_id, messages });
   }
 
+  broadcastSystem(circleId: string, action: string, extra?: Record<string, any>) {
+    this.server.to(`circle:${circleId}`).emit('system', {
+      circle_id: circleId,
+      action,
+      timestamp: new Date().toISOString(),
+      ...extra,
+    });
+  }
+
   private notifyMuted(userId: string, circleId: string, until: string, reason: string) {
     this.server.to(`user:${userId}`).emit('muted', {
       circle_id: circleId,

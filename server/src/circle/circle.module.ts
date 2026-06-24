@@ -8,9 +8,10 @@ import { Circle } from './entities/circle.entity';
 import { CircleMember } from './entities/circle-member.entity';
 import { Category } from './entities/category.entity';
 import { WishItem } from '../wishpool/entities/wish-item.entity';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Circle, CircleMember, Category, WishItem])],
+  imports: [TypeOrmModule.forFeature([Circle, CircleMember, Category, WishItem]), ChatModule],
   controllers: [CircleController, SearchController, CategoryController],
   providers: [CircleService],
   exports: [CircleService],
