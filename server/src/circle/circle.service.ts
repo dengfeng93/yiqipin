@@ -50,7 +50,29 @@ export class CircleService {
     const score = circle.start_time.getTime();
     await this.redis.zadd('circles:upcoming', score, circle.id);
 
+    const gridLat = Math.round(dto.lat * 100) / 100;
+    const gridLng = Math.round(dto.lng * 100) / 100;
+    const redisClient = this.redis.getClient();
+    const keys = await redisClient.keys(`cache:circles:${gridLat}:${gridLng}:*`);
+    if (keys.length > 0) await redisClient.del(keys);
+
     return circle;
+  }
+
+  private gridKey(lat: number, lng: number, rangeKm: number): string {
+    const gridLat = Math.round(lat * 100) / 100;
+    const gridLng = Math.round(lng * 100) / 100;
+    return `cache:circles:${gridLat}:${gridLng}:${rangeKm}`;
+  }
+
+  async findNearbyWithCache(lat: number, lng: number, rangeKm: number, filters?: any) {
+    const key = this.gridKey(lat, lng, rangeKm);
+    const cached = await this.redis.get(key);
+    if (cached) return JSON.parse(cached);
+
+    const result = await this.findNearby(lat, lng, rangeKm, filters);
+    await this.redis.set(key, JSON.stringify(result), 30);
+    return result;
   }
 
   async findNearby(lat: number, lng: number, rangeKm: number, filters: Partial<{

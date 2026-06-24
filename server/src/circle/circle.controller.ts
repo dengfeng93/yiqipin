@@ -14,7 +14,7 @@ export class CircleController {
   @Public()
   @Get()
   findNearby(@Query() query: CircleQueryDto) {
-    return this.circleService.findNearby(query.lat, query.lng, query.range || 10, query);
+    return this.circleService.findNearbyWithCache(query.lat, query.lng, query.range || 10, query);
   }
 
   @Get(':id')
