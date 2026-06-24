@@ -65,6 +65,14 @@ export class ChatService {
     return !!member;
   }
 
+  async recordViolation(userId: string, circleId: string, msgId: string | null, action: string, reason: string) {
+    await this.msgRepo.manager.query(
+      `INSERT INTO violation_records (user_id, circle_id, msg_id, action, reason)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, circleId, msgId, action, reason],
+    );
+  }
+
   async updateLastRead(circleId: string, userId: string) {
     await this.memberRepo.update(
       { circle_id: circleId, user_id: userId },

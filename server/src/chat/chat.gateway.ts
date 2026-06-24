@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { ChatService } from './chat.service';
 import { MessageType } from './entities/circle-message.entity';
 import { RedisService } from '../redis/redis.service';
+import { SensitiveWordService } from '../common/services/sensitive-word.service';
+import { ImageSafeService } from '../common/services/image-safe.service';
 import * as jwt from 'jsonwebtoken';
 
 @WebSocketGateway({ namespace: 'chat', cors: { origin: true } })
@@ -20,6 +22,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private chatService: ChatService,
     private configService: ConfigService,
     private redis: RedisService,
+    private sensitiveWord: SensitiveWordService,
+    private imageSafe: ImageSafeService,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -99,6 +103,40 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    // 敏感词检测（文字消息）
+    if (data.type === 'text' && data.content) {
+      const check = this.sensitiveWord.check(data.content);
+      if (!check.passed) {
+        client.emit('error', { code: 400, message: '消息包含敏感内容，无法发送' });
+        this.chatService.recordViolation(userId, circleId, null, 'warn', JSON.stringify({ type: 'sensitive_word', word: check.hit_word }));
+        const mutedUntil = new Date(Date.now() + 3600000).toISOString();
+        this.notifyMuted(userId, circleId, mutedUntil, '敏感词违规');
+        return;
+      }
+    }
+
+    // 图片安全审核（图片消息）
+    if (data.type === 'image' && data.image_url) {
+      const audit = await this.imageSafe.audit(data.image_url);
+      if (!audit.passed) {
+        client.emit('error', { code: 400, message: '图片内容违规，无法发送' });
+        this.chatService.recordViolation(userId, circleId, null, 'warn', JSON.stringify({ type: 'image_audit', label: audit.label }));
+        const mutedUntil = new Date(Date.now() + 3600000).toISOString();
+        this.notifyMuted(userId, circleId, mutedUntil, '图片违规');
+        return;
+      }
+    }
+
+    // Chat 限流: 每用户1条/秒
+    const rlKey = `rl:chat:${userId}`;
+    const redisClient = this.redis.getClient();
+    const count = await redisClient.incr(rlKey);
+    await redisClient.expire(rlKey, 1);
+    if (count > 1) {
+      client.emit('error', { code: 429, message: '发言过于频繁' });
+      return;
+    }
+
     const msg = await this.chatService.saveMessage({
       circle_id: circleId,
       user_id: userId,
@@ -134,5 +172,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handlePullOffline(@ConnectedSocket() client: Socket, @MessageBody() data: { circle_id: string; since: string }) {
     const messages = await this.chatService.getOfflineMessages(data.circle_id, data.since);
     client.emit('offline_msgs', { circle_id: data.circle_id, messages });
+  }
+
+  private notifyMuted(userId: string, circleId: string, until: string, reason: string) {
+    this.server.to(`user:${userId}`).emit('muted', {
+      circle_id: circleId,
+      until,
+      reason,
+    });
   }
 }
