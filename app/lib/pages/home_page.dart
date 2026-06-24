@@ -40,6 +40,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _loadCircles() async {
+    if (!mounted) return;
+    _emptyStateFuture = null;
     setState(() { _loading = true; _error = null; });
     try {
       final loc = ref.read(locationProvider);
@@ -130,8 +132,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
       bottomNavigationBar: BottomNav(currentIndex: _tabIndex, onTap: (i) {
         setState(() => _tabIndex = i);
-        if (i == 1) Navigator.pushReplacementNamed(context, '/messages');
-        if (i == 3) Navigator.pushReplacementNamed(context, '/profile');
+        if (i == 1) Navigator.pushNamed(context, '/messages');
+        if (i == 3) Navigator.pushNamed(context, '/profile');
       }),
     );
   }
