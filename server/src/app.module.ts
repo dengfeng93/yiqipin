@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { AppConfigModule } from './config/config.module';
-import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
@@ -18,6 +19,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import databaseConfig from './config/database.config';
 
 @Module({
   imports: [
@@ -27,18 +29,19 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
         transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty' } : undefined,
       },
     }),
-    DatabaseModule,
+    TypeOrmModule.forRoot(databaseConfig()),
     RedisModule,
-    CommonModule,
+    ScheduleModule.forRoot(),
     AuthModule,
     UserModule,
+    CommonModule,
     HealthModule,
-    AdminModule,
     CircleModule,
     WishpoolModule,
     ChatModule,
     UploadModule,
     ReviewModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

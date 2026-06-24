@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { AppConfigModule } from './config/config.module';
-import { DatabaseModule } from './database/database.module';
-import { RedisModule } from './redis/redis.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AppModule } from './app.module';
+import { ScheduleTasksModule } from './schedule/schedule.module';
 
 @Module({
-  imports: [AppConfigModule, DatabaseModule, RedisModule],
+  imports: [AppModule, ScheduleModule.forRoot(), ScheduleTasksModule],
 })
 export class AppWorkerModule {}
