@@ -27,10 +27,9 @@ class _MessagesPageState extends State<MessagesPage> {
     setState(() => _loading = true);
     try {
       final res = await _api.get('/users/me/circles');
-      final circles = (res.data['data'] as List?)
-              ?.map((j) => Map<String, dynamic>.from(j))
-              .toList() ??
-          [];
+      final body = res.data['data'];
+      final raw = body is List ? body : (body['data'] as List?);
+      final circles = (raw)?.map((j) => Map<String, dynamic>.from(j)).toList() ?? [];
       if (mounted) {
         setState(() {
           _activeCircles = circles.where((c) {
