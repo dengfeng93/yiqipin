@@ -68,4 +68,10 @@ export class CircleController {
   convert(@Param('id') id: string, @CurrentUser() user: User) {
     return this.circleService.convertToPermanent(id, user.id);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/expand')
+  async expand(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.circleService.expandRange(id, user.id);
+  }
 }

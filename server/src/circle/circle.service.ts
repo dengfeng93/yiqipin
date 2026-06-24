@@ -192,4 +192,16 @@ export class CircleService {
   async getCategories() {
     return this.categoryRepo.find({ order: { sort: 'ASC' } });
   }
+
+  async expandRange(circleId: string, userId: string) {
+    const circle = await this.findById(circleId);
+    if (circle.creator_id !== userId) throw new ForbiddenException('仅创建者可扩大搜索范围');
+
+    const newRange = Math.min(circle.range_km + 2, 10);
+    if (newRange === circle.range_km) throw new ForbiddenException('已达最大范围(10km)');
+
+    circle.range_km = newRange;
+    await this.circleRepo.save(circle);
+    return { circle_id: circleId, range_km: newRange };
+  }
 }
