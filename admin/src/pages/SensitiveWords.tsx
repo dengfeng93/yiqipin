@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Tag, Space, Input, Select, Modal, message } from 'antd';
+import { Table, Button, Tag, Space, Input, Select, Modal, message, Alert } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 export default function SensitiveWords() {
   const [words, setWords] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newWord, setNewWord] = useState('');
   const [newLevel, setNewLevel] = useState(1);
 
   const fetchWords = async () => {
     setLoading(true);
+    setError(false);
     try {
       const res = await axios.get('/api/v1/admin/sensitive-words');
       setWords(res.data.data);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -86,6 +90,7 @@ export default function SensitiveWords() {
   return (
     <>
       <h2>敏感词库</h2>
+      {error && <Alert type="error" message="加载失败" action={<Button size="small" onClick={() => fetchWords()}>重试</Button>} style={{ marginBottom: 16 }} />}
       <Space style={{ marginBottom: 16 }}>
         <Button
           type="primary"

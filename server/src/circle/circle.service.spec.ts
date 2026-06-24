@@ -15,7 +15,7 @@ describe('CircleService', () => {
   const mockMemberRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), count: jest.fn(), delete: jest.fn(), find: jest.fn(), update: jest.fn(), manager: { query: jest.fn() } };
   const mockCategoryRepo = { findOne: jest.fn(), find: jest.fn() };
   const mockWishRepo = { createQueryBuilder: jest.fn() };
-  const mockDataSource = { transaction: jest.fn((cb: any) => cb({ create: jest.fn(), save: jest.fn(), query: jest.fn() })) };
+  const mockDataSource = { transaction: jest.fn((cb: any) => cb({ create: jest.fn(), save: jest.fn(), query: jest.fn(), findOne: jest.fn() })) };
   const mockRedis = { zadd: jest.fn(), zrem: jest.fn(), getClient: jest.fn().mockReturnValue({ scan: jest.fn().mockResolvedValue(['0', []]) }) };
   const mockChatGateway = { broadcastSystem: jest.fn() };
 
@@ -36,7 +36,11 @@ describe('CircleService', () => {
   });
 
   it('should throw when joining non-existent circle', async () => {
-    mockCircleRepo.findOne.mockResolvedValue(null);
+    // Stub the manager's findOne to return null (circle not found)
+    mockDataSource.transaction.mockImplementationOnce((cb: any) => cb({
+      create: jest.fn(), save: jest.fn(), query: jest.fn(),
+      findOne: jest.fn().mockResolvedValue(null),
+    }));
     await expect(service.join('bad-id', 'user-1')).rejects.toThrow('圈子不存在');
   });
 

@@ -27,7 +27,11 @@ export class ChatService {
     return circle || null;
   }
 
-  async getHistory(circleId: string, before?: string, limit = 50) {
+  async getHistory(circleId: string, before?: string, limit = 50, userId?: string) {
+    if (userId) {
+      const isMember = await this.isMember(circleId, userId);
+      if (!isMember) throw new ForbiddenException('你不是圈子成员');
+    }
     const where: any = { circle_id: circleId };
     if (before) {
       const target = await this.msgRepo.findOne({ where: { id: before } });

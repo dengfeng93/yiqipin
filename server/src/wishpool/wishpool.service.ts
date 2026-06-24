@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WishItem, WishStatus } from './entities/wish-item.entity';
@@ -10,6 +10,8 @@ import { locationToPoint } from '../common/utils/geo';
 
 @Injectable()
 export class WishpoolService {
+  private readonly logger = new Logger(WishpoolService.name);
+
   constructor(
     @InjectRepository(WishItem) private wishRepo: Repository<WishItem>,
     @InjectRepository(Category) private categoryRepo: Repository<Category>,
@@ -52,7 +54,9 @@ export class WishpoolService {
       throw e;
     }
 
-    this.checkThreshold(categoryId, lat, lng).catch(() => {});
+    this.checkThreshold(categoryId, lat, lng).catch((err) => {
+      this.logger.warn(`checkThreshold failed for category ${categoryId}`, err);
+    });
     return { created: true, wish_id: wish.id };
   }
 

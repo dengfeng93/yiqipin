@@ -25,13 +25,16 @@ axios.interceptors.response.use(
 interface AuthState {
   token: string | null;
   user: { username: string; role: string } | null;
+  validating: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: localStorage.getItem('admin_token'),
   user: null,
+  validating: !!localStorage.getItem('admin_token'),
   login: async (username, password) => {
     const res = await axios.post('/api/v1/admin/login', { username, password });
     const { token, user } = res.data.data;
@@ -41,5 +44,19 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('admin_token');
     set({ token: null, user: null });
+  },
+  checkAuth: async () => {
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+      set({ validating: false });
+      return;
+    }
+    try {
+      await axios.get('/api/v1/admin/stats');
+      set({ validating: false });
+    } catch {
+      localStorage.removeItem('admin_token');
+      set({ token: null, user: null, validating: false });
+    }
   },
 }));

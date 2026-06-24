@@ -32,8 +32,14 @@ export class ReviewService {
     });
   }
 
-  async getUserReviews(userId: string) {
-    return this.reviewRepo.find({ where: { target_user_id: userId }, order: { created_at: 'DESC' } });
+  async getUserReviews(userId: string, page = 1, limit = 20) {
+    const cappedLimit = Math.min(limit, 100);
+    return this.reviewRepo.find({
+      where: { target_user_id: userId },
+      order: { created_at: 'DESC' },
+      skip: (page - 1) * cappedLimit,
+      take: cappedLimit,
+    });
   }
 
   async createReport(reporterId: string, dto: { target_user_id?: string; circle_id?: string; type: string; reason: string; detail?: string }) {

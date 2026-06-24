@@ -15,11 +15,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(AuthState());
 
   Future<void> wechatLogin(String code) async {
-    final res = await _api.post('/auth/wechat-login', data: {'code': code});
-    final data = res.data['data'];
-    await _storage.write(key: 'access_token', value: data['accessToken']);
-    await _storage.write(key: 'refresh_token', value: data['refreshToken']);
-    state = AuthState(isLoggedIn: true, user: data['user']);
+    try {
+      final res = await _api.post('/auth/wechat-login', data: {'code': code});
+      final data = res.data['data'];
+      await _storage.write(key: 'access_token', value: data['accessToken']);
+      await _storage.write(key: 'refresh_token', value: data['refreshToken']);
+      state = AuthState(isLoggedIn: true, user: data['user']);
+    } catch (_) {
+      state = AuthState();
+      rethrow;
+    }
   }
 
   Future<void> login() async {

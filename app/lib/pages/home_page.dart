@@ -8,6 +8,7 @@ import '../widgets/circle_card.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/error_state.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -137,8 +138,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ]),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, '/create-circle'),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomNav(currentIndex: _tabIndex, onTap: (i) {
         if (i == 2) {
           Navigator.pushNamed(context, '/create-circle');

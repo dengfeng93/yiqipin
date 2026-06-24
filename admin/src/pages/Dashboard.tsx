@@ -9,12 +9,9 @@ import {
 import axios from 'axios';
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({
-    users: 0,
-    circles: 0,
-    completion: 0,
-    reports: 0,
-  });
+  const [stats, setStats] = useState<{
+    users: number; circles: number; completion: number; reports: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -48,7 +45,7 @@ export default function Dashboard() {
           <Card>
             <Statistic
               title="总用户数"
-              value={stats.users}
+              value={stats?.users ?? '-'}
               prefix={<TeamOutlined />}
             />
           </Card>
@@ -57,7 +54,7 @@ export default function Dashboard() {
           <Card>
             <Statistic
               title="今日圈子"
-              value={stats.circles}
+              value={stats?.circles ?? '-'}
               prefix={<ClockCircleOutlined />}
             />
           </Card>
@@ -66,7 +63,7 @@ export default function Dashboard() {
           <Card>
             <Statistic
               title="成局率"
-              value={stats.completion}
+              value={stats?.completion ?? '-'}
               suffix="%"
               prefix={<CheckCircleOutlined />}
             />
@@ -76,7 +73,7 @@ export default function Dashboard() {
           <Card>
             <Statistic
               title="待审举报"
-              value={stats.reports}
+              value={stats?.reports ?? '-'}
               prefix={<WarningOutlined />}
             />
           </Card>

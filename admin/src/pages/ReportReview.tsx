@@ -1,19 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Tag, Space, Modal, message, Popconfirm } from 'antd';
+import { Table, Button, Tag, Space, Modal, message, Popconfirm, Alert } from 'antd';
 import { EyeOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 export default function ReportReview() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
   const fetchReports = async () => {
     setLoading(true);
+    setError(false);
     try {
       const res = await axios.get('/api/v1/admin/reports');
       setReports(res.data.data);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -109,6 +113,7 @@ export default function ReportReview() {
   return (
     <>
       <h2>举报审核</h2>
+      {error && <Alert type="error" message="加载失败" action={<Button size="small" onClick={() => fetchReports()}>重试</Button>} style={{ marginBottom: 16 }} />}
       <Table columns={columns} dataSource={reports} rowKey="id" loading={loading} />
       <Modal
         title="举报详情"

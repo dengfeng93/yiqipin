@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Tag, Space, Input, message, Popconfirm } from 'antd';
+import { Table, Button, Tag, Space, Input, message, Popconfirm, Alert } from 'antd';
 import { SearchOutlined, EyeOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
 
   const fetchUsers = async (keyword?: string) => {
     setLoading(true);
+    setError(false);
     try {
       const res = await axios.get('/api/v1/admin/users', { params: { keyword: keyword || search || undefined } });
       setUsers(res.data.data);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -91,6 +95,7 @@ export default function UserManagement() {
   return (
     <>
       <h2>用户管理</h2>
+      {error && <Alert type="error" message="加载失败" action={<Button size="small" onClick={() => fetchUsers()}>重试</Button>} style={{ marginBottom: 16 }} />}
       <Space style={{ marginBottom: 16 }}>
         <Input.Search
           placeholder="搜索用户"

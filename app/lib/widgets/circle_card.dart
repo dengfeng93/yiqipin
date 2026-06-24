@@ -114,7 +114,7 @@ class CircleCard extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: cs.onSurfaceVariant.withOpacity(0.4)),
         const SizedBox(height: 2),
-        Text(label, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant.withOpacity(0.4))),
+        Text(label, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant.withOpacity(0.4))),
       ],
     );
   }

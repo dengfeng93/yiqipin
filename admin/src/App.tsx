@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { useAuthStore } from './store/authStore';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -18,8 +20,28 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const validating = useAuthStore((s) => s.validating);
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  if (validating) {
+    return (
+      <ConfigProvider locale={zhCN}>
+        <ErrorBoundary>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+            <Spin size="large" />
+          </div>
+        </ErrorBoundary>
+      </ConfigProvider>
+    );
+  }
+
   return (
     <ConfigProvider locale={zhCN}>
+      <ErrorBoundary>
       <BrowserRouter basename="/admin">
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -40,6 +62,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </ErrorBoundary>
     </ConfigProvider>
   );
 }

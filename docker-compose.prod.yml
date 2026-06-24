@@ -46,6 +46,7 @@ services:
     image: ${DOCKER_REGISTRY:-ghcr.io}/yiqipin-api:${TAG:-latest}
     restart: always
     container_name: yiqipin-worker
+    command: ["node", "dist/main.worker.js"]
     environment:
       APP_ROLE: worker
       NODE_ENV: production

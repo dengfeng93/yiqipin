@@ -55,8 +55,11 @@ class ApiService {
       if (refreshToken == null) return null;
       final res = await Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
           .post('/auth/refresh', data: {'refreshToken': refreshToken});
-      final newToken = res.data['data']['accessToken'] as String;
-      final newRefresh = res.data['data']['refreshToken'] as String;
+      final data = res.data?['data'];
+      if (data is! Map) return null;
+      final newToken = data['accessToken'];
+      final newRefresh = data['refreshToken'];
+      if (newToken is! String || newRefresh is! String) return null;
       await _storage.write(key: 'access_token', value: newToken);
       await _storage.write(key: 'refresh_token', value: newRefresh);
       for (final c in _refreshQueue) {

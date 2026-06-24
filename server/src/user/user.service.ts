@@ -35,26 +35,50 @@ export class UserService {
     return this.sanitizeUser(user);
   }
 
-  async getMyCircles(userId: string): Promise<any[]> {
-    return this.userRepo.query(
-      `SELECT c.*, cm.role, cm.joined_at
-       FROM circles c
-       INNER JOIN circle_members cm ON cm.circle_id = c.id
-       WHERE cm.user_id = $1
-       ORDER BY cm.joined_at DESC`,
-      [userId],
-    );
+  async getMyCircles(userId: string, page = 1, limit = 20): Promise<{ data: any[]; total: number }> {
+    const cappedLimit = Math.min(limit, 100);
+    const offset = (page - 1) * cappedLimit;
+    const [data, [countRow]] = await Promise.all([
+      this.userRepo.query(
+        `SELECT c.*, cm.role, cm.joined_at
+         FROM circles c
+         INNER JOIN circle_members cm ON cm.circle_id = c.id
+         WHERE cm.user_id = $1
+         ORDER BY cm.joined_at DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, cappedLimit, offset],
+      ),
+      this.userRepo.query(
+        `SELECT count(*)::int AS total
+         FROM circle_members
+         WHERE user_id = $1`,
+        [userId],
+      ),
+    ]);
+    return { data, total: countRow.total };
   }
 
-  async getReviews(userId: string): Promise<any[]> {
-    return this.userRepo.query(
-      `SELECT ur.*, u.nickname AS reviewer_nickname, u.avatar AS reviewer_avatar
-       FROM user_reviews ur
-       LEFT JOIN users u ON u.id = ur.reviewer_id
-       WHERE ur.target_user_id = $1
-       ORDER BY ur.created_at DESC`,
-      [userId],
-    );
+  async getReviews(userId: string, page = 1, limit = 20): Promise<{ data: any[]; total: number }> {
+    const cappedLimit = Math.min(limit, 100);
+    const offset = (page - 1) * cappedLimit;
+    const [data, [countRow]] = await Promise.all([
+      this.userRepo.query(
+        `SELECT ur.*, u.nickname AS reviewer_nickname, u.avatar AS reviewer_avatar
+         FROM user_reviews ur
+         LEFT JOIN users u ON u.id = ur.reviewer_id
+         WHERE ur.target_user_id = $1
+         ORDER BY ur.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, cappedLimit, offset],
+      ),
+      this.userRepo.query(
+        `SELECT count(*)::int AS total
+         FROM user_reviews
+         WHERE target_user_id = $1`,
+        [userId],
+      ),
+    ]);
+    return { data, total: countRow.total };
   }
 
   async getProfile(userId: string): Promise<UserProfile | null> {
@@ -75,7 +99,7 @@ export class UserService {
   }
 
   private sanitizeUser(user: User) {
-    const { wechat_openid, deleted_at, ...safe } = user as Record<string, any>;
+    const { wechat_openid, deleted_at, phone, muted_until, ...safe } = user as Record<string, any>;
     return safe;
   }
 }

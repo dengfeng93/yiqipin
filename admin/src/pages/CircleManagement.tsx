@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Tag, Space, Select, message, Popconfirm } from 'antd';
+import { Table, Button, Tag, Space, Select, message, Popconfirm, Alert } from 'antd';
 import { StopOutlined, EyeOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 export default function CircleManagement() {
   const [circles, setCircles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
 
   const fetchCircles = async () => {
     setLoading(true);
+    setError(false);
     try {
       const res = await axios.get('/api/v1/admin/circles', {
         params: { status: statusFilter || undefined },
       });
       setCircles(res.data.data);
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -90,6 +94,7 @@ export default function CircleManagement() {
   return (
     <>
       <h2>圈子管理</h2>
+      {error && <Alert type="error" message="加载失败" action={<Button size="small" onClick={() => fetchCircles()}>重试</Button>} style={{ marginBottom: 16 }} />}
       <Space style={{ marginBottom: 16 }}>
         <Select
           placeholder="状态筛选"

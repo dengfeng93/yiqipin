@@ -12,6 +12,7 @@ import '../pages/profile_page.dart';
 import '../pages/settings_page.dart';
 import '../pages/wishpool_page.dart';
 import '../pages/search_page.dart';
+import '../widgets/empty_state.dart';
 
 class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -25,10 +26,12 @@ class AppRoutes {
       case '/home':
         return _page(const HomePage());
       case '/circle-detail':
+        if (settings.arguments is! String) return _page(const ErrorStateWidget(message: '无效导航'));
         return _page(CircleDetailPage(circleId: settings.arguments as String));
       case '/create-circle':
         return _page(const CreateCirclePage());
       case '/chat':
+        if (settings.arguments is! String) return _page(const ErrorStateWidget(message: '无效导航'));
         return _page(ChatPage(circleId: settings.arguments as String));
       case '/messages':
         return _page(const MessagesPage());

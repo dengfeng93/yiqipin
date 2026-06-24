@@ -18,7 +18,7 @@ export class UserController {
   @Get(':id')
   async getUser(@Param('id') id: string) {
     const user = await this.userService.findById(id);
-    const { wechat_openid, deleted_at, ...safe } = user as any;
+    const { wechat_openid, deleted_at, phone, muted_until, ...safe } = user as any;
     return safe;
   }
 
@@ -26,7 +26,7 @@ export class UserController {
   @Get('me')
   async getMe(@CurrentUser() user: User) {
     const profile = await this.userService.getProfile(user.id);
-    const { wechat_openid, deleted_at, ...safe } = user as any;
+    const { wechat_openid, deleted_at, phone, muted_until, ...safe } = user as any;
     return {
       ...safe,
       total_created: profile?.total_created ?? 0,
@@ -49,14 +49,14 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me/circles')
-  async getMyCircles(@CurrentUser() user: User) {
-    return this.userService.getMyCircles(user.id);
+  async getMyCircles(@CurrentUser() user: User, @Query('page') page = 1, @Query('limit') limit = 20) {
+    return this.userService.getMyCircles(user.id, page, Math.min(limit, 100));
   }
 
   @Public()
   @Get(':id/reviews')
-  async getReviews(@Param('id') id: string) {
-    return this.userService.getReviews(id);
+  async getReviews(@Param('id') id: string, @Query('page') page = 1, @Query('limit') limit = 20) {
+    return this.userService.getReviews(id, page, Math.min(limit, 100));
   }
 
   @UseGuards(JwtAuthGuard)

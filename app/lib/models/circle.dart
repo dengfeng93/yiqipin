@@ -73,6 +73,10 @@ class Circle {
 
   String get timeLabel {
     final diff = startTime.difference(DateTime.now());
+    if (diff.isNegative) {
+      if (status == 'active' || status == 'preparing') return '🟢 进行中';
+      return '📅 已结束';
+    }
     if (diff.inMinutes <= 60) return '🔥 即将开始';
     if (diff.inHours <= 6) return '☀️ 今天';
     return '📅 计划中';
@@ -80,6 +84,10 @@ class Circle {
 
   Color get timeLabelColor {
     final diff = startTime.difference(DateTime.now());
+    if (diff.isNegative) {
+      if (status == 'active' || status == 'preparing') return Colors.green;
+      return Colors.grey;
+    }
     if (diff.inMinutes <= 60) return Colors.red;
     if (diff.inHours <= 6) return Colors.orange;
     return Colors.blue;

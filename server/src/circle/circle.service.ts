@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Circle, CircleStatus, StartType, RestrictTag } from './entities/circle.entity';
@@ -12,6 +12,8 @@ import { CreateCircleDto } from './dto/create-circle.dto';
 
 @Injectable()
 export class CircleService {
+  private readonly logger = new Logger(CircleService.name);
+
   constructor(
     @InjectRepository(Circle) private circleRepo: Repository<Circle>,
     @InjectRepository(CircleMember) private memberRepo: Repository<CircleMember>,
@@ -79,7 +81,9 @@ export class CircleService {
     return `cache:circles:${gridLat}:${gridLng}:${rangeKm}`;
   }
 
-  async findNearbyWithCache(lat: number, lng: number, rangeKm: number, filters?: any) {
+  async findNearbyWithCache(lat: number, lng: number, rangeKm: number, filters?: Partial<{
+    category_id: string; time_filter: string; instant: number;
+  }>) {
     const key = this.gridKey(lat, lng, rangeKm);
     const cached = await this.redis.get(key);
     if (cached) return JSON.parse(cached);
@@ -124,46 +128,48 @@ export class CircleService {
   }
 
   async join(circleId: string, userId: string, isAnonymous = false) {
-    const circle = await this.findById(circleId);
-    if (circle.status !== CircleStatus.ACTIVE && circle.status !== CircleStatus.PREPARING) {
-      throw new ForbiddenException('圈子已结束');
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const circle = await manager.findOne(Circle, {
+        where: { id: circleId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!circle) throw new NotFoundException('圈子不存在');
+      if (circle.status !== CircleStatus.ACTIVE && circle.status !== CircleStatus.PREPARING) {
+        throw new ForbiddenException('圈子已结束');
+      }
 
-    const existing = await this.memberRepo.findOne({ where: { circle_id: circleId, user_id: userId } });
-    if (existing) throw new ForbiddenException('你已在该圈子中');
+      const existing = await manager.findOne(CircleMember, { where: { circle_id: circleId, user_id: userId } });
+      if (existing) throw new ForbiddenException('你已在该圈子中');
 
-    // Use DB constraint as safety net against race condition, with atomic count check
-    try {
-      await this.memberRepo.manager.query(
-        `INSERT INTO circle_members (circle_id, user_id, is_anonymous)
-         SELECT $1, $2, $3
-         WHERE (SELECT count(*) FROM circle_members WHERE circle_id = $1) < $4`,
-        [circleId, userId, isAnonymous, circle.max_members],
-      );
-      // Verify the insert actually happened (race condition: limit reached)
-      const [countResult] = await this.memberRepo.manager.query(
+      const [countResult] = await manager.query(
         `SELECT count(*)::int AS cnt FROM circle_members WHERE circle_id = $1`, [circleId]
       );
-      const count = countResult.cnt;
-      if (count > circle.max_members) {
-        // Rollback if we exceeded
-        await this.memberRepo.delete({ circle_id: circleId, user_id: userId });
+      if (countResult.cnt >= circle.max_members) {
         throw new ForbiddenException('圈子已满');
       }
-    } catch (e: any) {
-      if (e instanceof ForbiddenException) throw e;
-      if (e.code === '23505') throw new ForbiddenException('你已在该圈子中');
-      throw e;
-    }
 
-    try {
-      await this.chatGateway.broadcastSystem(circleId, 'member_joined', {
-        user_id: userId,
-        is_anonymous: isAnonymous,
-      });
-    } catch {}
+      await manager.save(manager.create(CircleMember, {
+        circle_id: circleId, user_id: userId, role: 'member', is_anonymous: isAnonymous,
+      }));
 
-    return { joined: true };
+      // Increment total_joined
+      await manager.query(
+        `INSERT INTO user_profiles (user_id, total_joined) VALUES ($1, 1)
+         ON CONFLICT (user_id) DO UPDATE SET total_joined = user_profiles.total_joined + 1`,
+        [userId],
+      );
+
+      return { joined: true };
+    }).then(async (result) => {
+      try {
+        await this.chatGateway.broadcastSystem(circleId, 'member_joined', {
+          user_id: userId, is_anonymous: isAnonymous,
+        });
+      } catch (err) {
+        this.logger.warn(`broadcastSystem member_joined failed for circle ${circleId}`, err);
+      }
+      return result;
+    });
   }
 
   async leave(circleId: string, userId: string) {
@@ -177,37 +183,58 @@ export class CircleService {
   }
 
   async dissolve(circleId: string, userId: string) {
-    const circle = await this.findById(circleId);
-    if (circle.status === CircleStatus.DISSOLVED) throw new BadRequestException('圈子已解散');
-    if (circle.creator_id !== userId) throw new ForbiddenException('仅创建者可解散');
-    circle.status = CircleStatus.DISSOLVED;
-    circle.dissolved_at = new Date();
-    await this.circleRepo.save(circle);
-    await this.redis.zrem('circles:upcoming', circleId);
-
-    await this.chatGateway.broadcastSystem(circleId, 'circle_dissolved');
-
-    return { dissolved: true };
+    return this.dataSource.transaction(async (manager) => {
+      const circle = await manager.findOne(Circle, {
+        where: { id: circleId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!circle) throw new NotFoundException('圈子不存在');
+      if (circle.status === CircleStatus.DISSOLVED) throw new BadRequestException('圈子已解散');
+      if (circle.creator_id !== userId) throw new ForbiddenException('仅创建者可解散');
+      circle.status = CircleStatus.DISSOLVED;
+      circle.dissolved_at = new Date();
+      await manager.save(circle);
+      return { dissolved: true };
+    }).then(async (result) => {
+      await this.redis.zrem('circles:upcoming', circleId);
+      try {
+        await this.chatGateway.broadcastSystem(circleId, 'circle_dissolved');
+      } catch (err) {
+        this.logger.warn(`broadcastSystem circle_dissolved failed for circle ${circleId}`, err);
+      }
+      return result;
+    });
   }
 
   async convertToPermanent(circleId: string, userId: string) {
-    const circle = await this.findById(circleId);
-    if (circle.creator_id !== userId) throw new ForbiddenException('仅创建者可操作');
-    circle.status = CircleStatus.PRIVATE_PERMANENT;
-    await this.circleRepo.save(circle);
-    await this.redis.zrem('circles:upcoming', circleId);
-
-    await this.chatGateway.broadcastSystem(circleId, 'circle_converted');
-
-    return { converted: true };
+    return this.dataSource.transaction(async (manager) => {
+      const circle = await manager.findOne(Circle, {
+        where: { id: circleId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!circle) throw new NotFoundException('圈子不存在');
+      if (circle.creator_id !== userId) throw new ForbiddenException('仅创建者可操作');
+      circle.status = CircleStatus.PRIVATE_PERMANENT;
+      await manager.save(circle);
+      return { converted: true };
+    }).then(async (result) => {
+      await this.redis.zrem('circles:upcoming', circleId);
+      try {
+        await this.chatGateway.broadcastSystem(circleId, 'circle_converted');
+      } catch (err) {
+        this.logger.warn(`broadcastSystem circle_converted failed for circle ${circleId}`, err);
+      }
+      return result;
+    });
   }
 
   async getMembers(circleId: string, page = 1, limit = 50) {
+    const cappedLimit = Math.min(limit, 100);
     return this.memberRepo.find({
       where: { circle_id: circleId },
-      order: { joined_at: 'ASC' as any },
-      skip: (page - 1) * limit,
-      take: limit,
+      order: { joined_at: 'ASC' },
+      skip: (page - 1) * cappedLimit,
+      take: cappedLimit,
     });
   }
 
