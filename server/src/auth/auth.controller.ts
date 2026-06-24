@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Delete, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
 import { WechatLoginDto } from './dto/wechat-login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -22,15 +23,14 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
-  async refresh(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshAccessToken(refreshToken);
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshAccessToken(dto.refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@CurrentUser() user: User) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { wechat_openid, deleted_at, ...safe } = user as any;
+    const { wechat_openid, deleted_at, phone, muted_until, ...safe } = user as any;
     return safe;
   }
 
@@ -39,5 +39,17 @@ export class AuthController {
   async deleteMe(@CurrentUser() user: User) {
     await this.userService.softDelete(user.id);
     return { message: '账号已注销' };
+  }
+
+  @Public()
+  @Post('dev/token')
+  async devToken(@Body('userId') userId: string) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new UnauthorizedException('仅开发环境可用');
+    }
+    if (!userId) {
+      throw new UnauthorizedException('缺少 userId');
+    }
+    return this.authService.generateDevToken(userId);
   }
 }

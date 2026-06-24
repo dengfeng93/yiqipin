@@ -91,6 +91,15 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  async generateDevToken(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('用户不存在');
+    }
+    const tokens = await this.generateTokens(user);
+    return { ...tokens, user: this.sanitizeUser(user) };
+  }
+
   async refreshAccessToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken);
@@ -98,18 +107,16 @@ export class AuthService {
       if (!user || user.deleted_at) {
         throw new UnauthorizedException();
       }
-      const accessToken = this.jwtService.sign({ sub: user.id }, {
-        expiresIn: this.config.get('jwt.accessTtl'),
-      });
-      return { accessToken, user: this.sanitizeUser(user) };
+      // Rotate both tokens: issue new access + refresh token pair
+      const tokens = await this.generateTokens(user);
+      return { ...tokens, user: this.sanitizeUser(user) };
     } catch {
       throw new UnauthorizedException('refresh token 无效或已过期');
     }
   }
 
   private sanitizeUser(user: User) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { wechat_openid, deleted_at, ...safe } = user as any;
+    const { wechat_openid, deleted_at, phone, muted_until, ...safe } = user as any;
     return safe;
   }
 }
