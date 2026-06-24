@@ -65,6 +65,11 @@ export class AdminController {
     return this.adminService.deleteSensitiveWord(id);
   }
 
+  @Get('categories')
+  getCategories() {
+    return this.adminService.getCategories();
+  }
+
   @Patch('categories/:id/threshold')
   updateThreshold(@Param('id') id: string, @Body('threshold') threshold: number) {
     return this.adminService.updateWishThreshold(id, threshold);

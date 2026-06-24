@@ -23,7 +23,7 @@ export class SensitiveWordService implements OnModuleInit {
     if (!text) return { passed: true };
     const lower = text.toLowerCase();
     for (const w of this.words) {
-      if (lower.includes(w.word)) {
+      if (lower.includes(w.word.toLowerCase())) {
         return { passed: w.level !== 1, hit_word: w.word };
       }
     }
@@ -34,9 +34,8 @@ export class SensitiveWordService implements OnModuleInit {
     if (!text) return text;
     let result = text;
     for (const w of this.words) {
-      if (result.includes(w.word)) {
-        result = result.replace(new RegExp(w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '***');
-      }
+      const escaped = w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      result = result.replace(new RegExp(escaped, 'gi'), '***');
     }
     return result;
   }

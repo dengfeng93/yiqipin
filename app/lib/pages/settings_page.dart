@@ -45,7 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       await _api.post('/users/me/incognito');
     } catch (_) {
-      setState(() => _incognito = !v);
+      if (mounted) setState(() => _incognito = !v);
     }
   }
 
@@ -115,7 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 await _auth.logout();
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
-                  Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+                  if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
                 }
               } catch (_) {
                 if (ctx.mounted) {

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { CircleService } from './circle.service';
 import { Circle } from './entities/circle.entity';
 import { CircleMember } from './entities/circle-member.entity';
@@ -10,11 +11,12 @@ import { ChatGateway } from '../chat/chat.gateway';
 
 describe('CircleService', () => {
   let service: CircleService;
-  const mockCircleRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), createQueryBuilder: jest.fn() };
-  const mockMemberRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), count: jest.fn(), delete: jest.fn(), find: jest.fn(), update: jest.fn() };
+  const mockCircleRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), createQueryBuilder: jest.fn(), manager: { query: jest.fn() } };
+  const mockMemberRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), count: jest.fn(), delete: jest.fn(), find: jest.fn(), update: jest.fn(), manager: { query: jest.fn() } };
   const mockCategoryRepo = { findOne: jest.fn(), find: jest.fn() };
   const mockWishRepo = { createQueryBuilder: jest.fn() };
-  const mockRedis = { zadd: jest.fn(), zrem: jest.fn() };
+  const mockDataSource = { transaction: jest.fn((cb: any) => cb({ create: jest.fn(), save: jest.fn(), query: jest.fn() })) };
+  const mockRedis = { zadd: jest.fn(), zrem: jest.fn(), getClient: jest.fn().mockReturnValue({ scan: jest.fn().mockResolvedValue(['0', []]) }) };
   const mockChatGateway = { broadcastSystem: jest.fn() };
 
   beforeAll(async () => {
@@ -25,6 +27,7 @@ describe('CircleService', () => {
         { provide: getRepositoryToken(CircleMember), useValue: mockMemberRepo },
         { provide: getRepositoryToken(Category), useValue: mockCategoryRepo },
         { provide: getRepositoryToken(WishItem), useValue: mockWishRepo },
+        { provide: DataSource, useValue: mockDataSource },
         { provide: RedisService, useValue: mockRedis },
         { provide: ChatGateway, useValue: mockChatGateway },
       ],

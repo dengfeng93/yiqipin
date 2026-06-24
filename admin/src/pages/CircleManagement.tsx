@@ -25,9 +25,13 @@ export default function CircleManagement() {
   }, [statusFilter]);
 
   const dissolveCircle = async (circleId: string) => {
-    await axios.delete(`/api/v1/admin/circles/${circleId}`);
-    message.success('圈子已解散');
-    fetchCircles();
+    try {
+      await axios.delete(`/api/v1/admin/circles/${circleId}`);
+      message.success('圈子已解散');
+      fetchCircles();
+    } catch {
+      message.error('操作失败');
+    }
   };
 
   const statusColors: Record<string, string> = {

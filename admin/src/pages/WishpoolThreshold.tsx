@@ -10,7 +10,7 @@ export default function WishpoolThreshold() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/v1/categories');
+      const res = await axios.get('/api/v1/admin/categories');
       setCategories(res.data.data);
     } finally {
       setLoading(false);
@@ -28,6 +28,9 @@ export default function WishpoolThreshold() {
         threshold: value,
       });
       message.success('已更新');
+      fetchCategories();
+    } catch {
+      message.error('更新失败');
     } finally {
       setSaving((prev) => ({ ...prev, [id]: false }));
     }
@@ -40,12 +43,13 @@ export default function WishpoolThreshold() {
       title: '修改阈值',
       render: (_: any, record: any) => (
         <InputNumber
+          key={`${record.id}-${record.wish_threshold}`}
           min={2}
           max={20}
           defaultValue={record.wish_threshold}
           onBlur={(e) => {
             const v = parseInt(e.target.value);
-            if (v && v !== record.wish_threshold) updateThreshold(record.id, v);
+            if (!isNaN(v) && v !== record.wish_threshold) updateThreshold(record.id, v);
           }}
         />
       ),

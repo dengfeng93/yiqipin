@@ -9,6 +9,7 @@ export class SearchController {
   @Public()
   @Get('search')
   async search(@Query('q') q: string, @Query('lat') lat: number, @Query('lng') lng: number) {
+    if (!q || !q.trim()) return { data: [] };
     return this.circleService.search(q, lat, lng);
   }
 }

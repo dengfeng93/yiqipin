@@ -1,6 +1,17 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
-COPY dist/ ./dist/
+RUN npm ci
+COPY . .
+RUN npm run build:worker || npm run build
+
+FROM node:20-alpine
+ENV NODE_ENV=production
+RUN apk add --no-cache procps
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+RUN npm ci --omit=dev
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD pgrep -f "main.worker" || exit 1
 CMD ["node", "dist/main.worker.js"]

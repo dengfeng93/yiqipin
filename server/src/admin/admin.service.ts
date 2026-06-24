@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectDataSource } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { SensitiveWordService } from '../common/services/sensitive-word.service';
 
@@ -10,11 +11,12 @@ export class AdminService {
     private jwtService: JwtService,
     @InjectDataSource() private db: DataSource,
     private sensitiveWord: SensitiveWordService,
+    private config: ConfigService,
   ) {}
 
   async login(username: string, password: string) {
-    const adminUser = process.env.ADMIN_USERNAME;
-    const adminPass = process.env.ADMIN_PASSWORD;
+    const adminUser = this.config.get<string>('ADMIN_USERNAME');
+    const adminPass = this.config.get<string>('ADMIN_PASSWORD');
     if (!adminUser || !adminPass) {
       throw new UnauthorizedException('管理员账号未配置');
     }
@@ -138,7 +140,7 @@ export class AdminService {
         }
       }
     }
-    await this.db.query(`UPDATE reports SET status = $1, handled_by = 'admin' WHERE id = $2`,
+    await this.db.query(`UPDATE reports SET status = $1, handled_by = NULL WHERE id = $2`,
       [action === 'dismiss' ? 'dismissed' : 'reviewed', reportId]);
     return { ok: true };
   }
@@ -167,5 +169,10 @@ export class AdminService {
   async updateWishThreshold(categoryId: string, threshold: number) {
     await this.db.query(`UPDATE categories SET wish_threshold = $1 WHERE id = $2`, [threshold, categoryId]);
     return { ok: true };
+  }
+
+  async getCategories() {
+    const [data] = await this.db.query(`SELECT * FROM categories ORDER BY sort ASC`);
+    return { data };
   }
 }

@@ -19,15 +19,15 @@ export class HealthController {
     try {
       await this.db.query('SELECT 1');
       checks.db = 'ok';
-    } catch (e: any) {
-      checks.db = `error: ${e.message}`;
+    } catch {
+      checks.db = 'error';
     }
 
     try {
       const pong = await this.redis.getClient().ping();
       checks.redis = pong === 'PONG' ? 'ok' : 'error';
-    } catch (e: any) {
-      checks.redis = `error: ${e.message}`;
+    } catch {
+      checks.redis = 'error';
     }
 
     const allOk = Object.values(checks).every(v => v === 'ok');

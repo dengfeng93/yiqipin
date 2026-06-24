@@ -77,13 +77,17 @@ export class CircleSchedulerService {
       `);
 
       for (const c of circles) {
-        await this.notificationService.create({
-          user_id: c.creator_id,
-          type: NotificationType.CIRCLE_WILL_END,
-          title: '圈子即将结束',
-          body: `"${c.title}"将在6小时后自动归档，是否转为永久搭子群？`,
-          data: { circle_id: c.id },
-        });
+        try {
+          await this.notificationService.create({
+            user_id: c.creator_id,
+            type: NotificationType.CIRCLE_WILL_END,
+            title: '圈子即将结束',
+            body: `"${c.title}"将在6小时后自动归档，是否转为永久搭子群？`,
+            data: { circle_id: c.id },
+          });
+        } catch (e) {
+          this.logger.error(`Failed to send permanent reminder for circle ${c.id}: ${e}`);
+        }
       }
     } finally {
       await this.redis.unlock('cron:permanent-reminder', lockToken);
@@ -111,12 +115,27 @@ export class CircleSchedulerService {
     if (!lockToken) return;
 
     try {
-      const result = await this.entityManager.query(`
-        DELETE FROM users
+      const userIds = await this.entityManager.query(`
+        SELECT id FROM users
         WHERE deleted_at IS NOT NULL
         AND deleted_at + INTERVAL '30 days' <= NOW()
       `);
-      this.logger.log(`Cleaned ${result[1]} deleted accounts`);
+      const ids = (userIds as { id: string }[]).map(u => u.id);
+
+      if (ids.length > 0) {
+        // Clean up related records first
+        for (const id of ids) {
+          await this.entityManager.query(`DELETE FROM circle_members WHERE user_id = $1`, [id]);
+          await this.entityManager.query(`DELETE FROM chat_messages WHERE user_id = $1`, [id]);
+          await this.entityManager.query(`DELETE FROM wish_items WHERE user_id = $1`, [id]);
+          await this.entityManager.query(`DELETE FROM user_reviews WHERE reviewer_id = $1 OR target_user_id = $1`, [id]);
+          await this.entityManager.query(`DELETE FROM reports WHERE reporter_id = $1`, [id]);
+          await this.entityManager.query(`DELETE FROM notifications WHERE user_id = $1`, [id]);
+          await this.entityManager.query(`DELETE FROM user_profiles WHERE user_id = $1`, [id]);
+          await this.entityManager.query(`DELETE FROM users WHERE id = $1`, [id]);
+        }
+        this.logger.log(`Cleaned ${ids.length} deleted accounts and related data`);
+      }
     } finally {
       await this.redis.unlock('cron:clean-accounts', lockToken);
     }

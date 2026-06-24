@@ -24,9 +24,13 @@ export default function ReportReview() {
   }, []);
 
   const handleAction = async (reportId: string, action: 'dismiss' | 'confirm') => {
-    await axios.post(`/api/v1/admin/reports/${reportId}/handle`, { action });
-    message.success(action === 'confirm' ? '已封禁被举报用户' : '已驳回举报');
-    fetchReports();
+    try {
+      await axios.post(`/api/v1/admin/reports/${reportId}/handle`, { action });
+      message.success(action === 'confirm' ? '已封禁被举报用户' : '已驳回举报');
+      fetchReports();
+    } catch {
+      message.error('操作失败');
+    }
   };
 
   const statusColors: Record<string, string> = {

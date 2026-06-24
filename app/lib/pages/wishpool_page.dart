@@ -37,17 +37,31 @@ class _WishpoolPageState extends State<WishpoolPage> {
   Future<void> _joinWish(String wishId) async {
     try {
       await _api.post('/wishes/$wishId/join');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('响应成功'), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating),
+        );
+      }
     } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('操作失败'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+        );
+      }
       return;
     }
     _loadWishes();
   }
 
   String _timeLabel(String createdAt) {
-    final diff = DateTime.now().difference(DateTime.parse(createdAt));
-    if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
-    if (diff.inHours < 24) return '${diff.inHours}小时前';
-    return '${diff.inDays}天前';
+    try {
+      final diff = DateTime.now().difference(DateTime.parse(createdAt));
+      if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
+      if (diff.inHours < 24) return '${diff.inHours}小时前';
+      return '${diff.inDays}天前';
+    } catch (_) {
+      return '';
+    }
   }
 
   @override

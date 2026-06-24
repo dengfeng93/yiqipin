@@ -31,9 +31,14 @@ export class RateLimitInterceptor implements NestInterceptor {
 
     const userId = req.user?.id || req.ip;
     const rk = `${config.prefix}:${userId}`;
-    const count = await this.redis.getClient().incr(rk);
+    const redisClient = this.redis.getClient();
+    const count = await redisClient.incr(rk);
     if (count === 1) {
-      await this.redis.getClient().expire(rk, config.windowSeconds);
+      await redisClient.expire(rk, config.windowSeconds);
+    } else {
+      // Ensure expiry is set even if incr/expire wasn't atomic
+      const ttl = await redisClient.ttl(rk);
+      if (ttl === -1) await redisClient.expire(rk, config.windowSeconds);
     }
     if (count > config.max) {
       throw new HttpException('操作过于频繁，请稍后再试', HttpStatus.TOO_MANY_REQUESTS);

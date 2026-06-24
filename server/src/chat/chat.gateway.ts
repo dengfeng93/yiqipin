@@ -102,6 +102,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const circleId = data.circle_id;
     const userId = client.data.userId;
 
+    // 限流检查放在最前面
+    const rlKey = `rl:chat:${userId}`;
+    const redisClient = this.redis.getClient();
+    const count = await redisClient.incr(rlKey);
+    await redisClient.expire(rlKey, 1);
+    if (count > 1) {
+      client.emit('error', { code: 429, message: '发言过于频繁' });
+      return;
+    }
+
     const circle = await this.chatService.getCircle(circleId);
     if (circle && ['dissolved', 'archived'].includes(circle.status)) {
       client.emit('error', { code: 403, message: '圈子已结束，无法发言' });
@@ -136,16 +146,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.notifyMuted(userId, circleId, mutedUntil, '图片违规');
         return;
       }
-    }
-
-    // Chat 限流: 每用户1条/秒
-    const rlKey = `rl:chat:${userId}`;
-    const redisClient = this.redis.getClient();
-    const count = await redisClient.incr(rlKey);
-    await redisClient.expire(rlKey, 1);
-    if (count > 1) {
-      client.emit('error', { code: 429, message: '发言过于频繁' });
-      return;
     }
 
     const msg = await this.chatService.saveMessage({
@@ -195,6 +195,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private notifyMuted(userId: string, circleId: string, until: string, reason: string) {
+    this.chatService.muteUser(userId, until);
     this.server.to(`user:${userId}`).emit('muted', {
       circle_id: circleId,
       until,

@@ -18,8 +18,8 @@ export class ImageSafeService {
 
   async audit(imageUrl: string): Promise<AuditResult> {
     if (!this.endpoint) {
-      this.logger.warn('COS_IMAGE_SAFE_ENDPOINT 未配置，图片审核跳过');
-      return { passed: true };
+      this.logger.error('COS_IMAGE_SAFE_ENDPOINT 未配置，拒绝所有图片上传');
+      return { passed: false, label: 'audit_unavailable', suggestion: 'Block' };
     }
 
     try {
@@ -37,7 +37,7 @@ export class ImageSafeService {
       };
     } catch (err: any) {
       this.logger.error(`图片审核失败: ${err.message}`);
-      return { passed: true, label: 'audit_skipped', suggestion: 'Pass' };
+      return { passed: false, label: 'audit_unavailable', suggestion: 'Block' };
     }
   }
 }

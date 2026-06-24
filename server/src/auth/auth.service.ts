@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../user/entities/user.entity';
 import { UserProfile } from '../user/entities/user-profile.entity';
@@ -19,6 +19,7 @@ export class AuthService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserProfile)
     private readonly profileRepo: Repository<UserProfile>,
+    @InjectDataSource() private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
   ) {}
@@ -28,19 +29,21 @@ export class AuthService {
     let user = await this.userRepo.findOne({ where: { wechat_openid: session.openid } });
 
     if (!user) {
-      user = this.userRepo.create({
-        wechat_openid: session.openid,
-        nickname: deviceInfo?.nickname || `用户${session.openid.slice(-6)}`,
-        avatar: deviceInfo?.avatar || '',
-      });
-      await this.userRepo.save(user);
+      user = await this.dataSource.transaction(async (manager) => {
+        const u = manager.create(User, {
+          wechat_openid: session.openid,
+          nickname: deviceInfo?.nickname || `用户${session.openid.slice(-6)}`,
+          avatar: deviceInfo?.avatar || '',
+        });
+        const savedUser = await manager.save(u);
 
-      await this.profileRepo.save(
-        this.profileRepo.create({
-          user_id: user.id,
+        await manager.save(manager.create(UserProfile, {
+          user_id: savedUser.id,
           new_user_badge: true,
-        }),
-      );
+        }));
+
+        return savedUser;
+      });
     }
 
     if (user.deleted_at) {
@@ -54,6 +57,9 @@ export class AuthService {
   private async code2session(code: string): Promise<WechatSession> {
     const appId = this.config.get('WECHAT_APP_ID');
     const secret = this.config.get('WECHAT_APP_SECRET');
+    if (!appId || !secret) {
+      throw new UnauthorizedException('微信配置缺失，请联系管理员');
+    }
 
     const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appId}&secret=${secret}&js_code=${code}&grant_type=authorization_code`;
 

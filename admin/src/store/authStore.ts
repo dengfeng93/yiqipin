@@ -10,13 +10,13 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally
+// Handle 401 globally (skip for login endpoint to avoid redirect loops)
 axios.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && !err.config.url?.includes('/admin/login')) {
       localStorage.removeItem('admin_token');
-      window.location.href = '/admin/login';
+      window.location.replace('/admin/login');
     }
     return Promise.reject(err);
   },
@@ -24,7 +24,7 @@ axios.interceptors.response.use(
 
 interface AuthState {
   token: string | null;
-  user: any;
+  user: { username: string; role: string } | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }

@@ -40,19 +40,18 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _loadCircles() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     try {
       final loc = ref.read(locationProvider);
-      if (loc.lat == null) return;
+      if (loc.lat == null) {
+        if (mounted) setState(() { _loading = false; _error = '无法获取位置信息，请检查定位权限'; });
+        return;
+      }
       final res = await _api.get('/circles', params: {'lat': loc.lat, 'lng': loc.lng, 'range': 10});
-      final payload = res.data['data'] as Map<String, dynamic>?;
-      final data = (payload?['data'] as List?) ?? [];
-      final meta = (payload?['meta'] as Map<String, dynamic>?) ?? {};
+      final data = (res.data['data'] as List?) ?? [];
       if (mounted) {
         setState(() {
           _circles = data.map((j) => Circle.fromJson(j)).toList();
-          _nearbyUserCount = meta['nearby_user_count'] ?? 0;
-          _todayCircleCount = meta['today_circle_count'] ?? 0;
           _loading = false;
         });
       }

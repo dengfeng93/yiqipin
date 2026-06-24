@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository, InjectEntityManager } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
@@ -30,7 +30,7 @@ export class NotificationService {
       { id: notifId, user_id: userId },
       { is_read: true },
     );
-    if (result.affected === 0) throw new Error('通知不存在');
+    if (result.affected === 0) throw new NotFoundException('通知不存在');
   }
 
   async getUnreadCount(userId: string): Promise<number> {
@@ -41,6 +41,8 @@ export class NotificationService {
     const members = await this.entityManager.query(
       `SELECT user_id FROM circle_members WHERE circle_id = $1`, [circleId]
     );
+    if (!members || members.length === 0) return;
+
     const notifications = members.map((m: { user_id: string }) => ({
       user_id: m.user_id,
       type,
@@ -48,8 +50,6 @@ export class NotificationService {
       body,
       data: { circle_id: circleId },
     }));
-    if (notifications.length > 0) {
-      await this.notifRepo.save(this.notifRepo.create(notifications));
-    }
+    await this.notifRepo.save(this.notifRepo.create(notifications));
   }
 }

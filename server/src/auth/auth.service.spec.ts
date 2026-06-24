@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { UserProfile } from '../user/entities/user-profile.entity';
 import { Repository } from 'typeorm';
@@ -17,6 +18,8 @@ describe('AuthService', () => {
     create: jest.fn(),
     save: jest.fn(),
   });
+
+  const mockDataSource = { transaction: jest.fn((cb: any) => cb({ create: jest.fn(), save: jest.fn() })) };
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -47,6 +50,10 @@ describe('AuthService', () => {
         {
           provide: getRepositoryToken(UserProfile),
           useFactory: mockRepo,
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();

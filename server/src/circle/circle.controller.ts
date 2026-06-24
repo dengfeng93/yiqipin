@@ -17,6 +17,12 @@ export class CircleController {
     return this.circleService.findNearbyWithCache(query.lat, query.lng, query.range || 10, query);
   }
 
+  @Public()
+  @Get('cards')
+  findCards(@Query() query: CircleQueryDto) {
+    return this.circleService.findCards(query.lat, query.lng, query.range || 10, query);
+  }
+
   @Get(':id')
   getCircle(@Param('id') id: string) {
     return this.circleService.findById(id);
@@ -53,8 +59,8 @@ export class CircleController {
   }
 
   @Get(':id/members')
-  getMembers(@Param('id') id: string) {
-    return this.circleService.getMembers(id);
+  getMembers(@Param('id') id: string, @Query('page') page = 1, @Query('limit') limit = 50) {
+    return this.circleService.getMembers(id, page, limit);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -73,11 +79,5 @@ export class CircleController {
   @Post(':id/expand')
   async expand(@Param('id') id: string, @CurrentUser() user: User) {
     return this.circleService.expandRange(id, user.id);
-  }
-
-  @Public()
-  @Get('cards')
-  findCards(@Query() query: CircleQueryDto) {
-    return this.circleService.findCards(query.lat, query.lng, query.range || 10, query);
   }
 }

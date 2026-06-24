@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import Redis from 'ioredis';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class RedisService {
@@ -40,7 +41,7 @@ export class RedisService {
   }
 
   async lock(key: string, ttl: number = 10000): Promise<string | null> {
-    const token = Math.random().toString(36).slice(2);
+    const token = crypto.randomUUID();
     const ok = await this.redis.set(`lock:${key}`, token, 'PX', ttl, 'NX');
     return ok === 'OK' ? token : null;
   }

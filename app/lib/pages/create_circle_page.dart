@@ -88,7 +88,9 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
         'restrict_tag': _restrictTag,
         'group_rule': _groupRule,
       });
-      final circleId = res.data['data']['id'];
+      final data = res.data['data'];
+      if (data == null) throw Exception('服务器返回空响应');
+      final circleId = data['id'];
       if (mounted) Navigator.pushReplacementNamed(context, '/circle-detail', arguments: circleId);
     } catch (e) {
       if (mounted) {

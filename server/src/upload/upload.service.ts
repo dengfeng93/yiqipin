@@ -28,13 +28,17 @@ export class UploadService {
     const expiredTime = now + 1800; // 30 minutes
     const prefix = `chat-images/${userId}/`;
 
-    // Build minimal STS policy for putObject to user's prefix
+    // Build minimal STS policy for putObject to user's prefix with size and type restrictions
     const policy = JSON.stringify({
       version: '2.0',
       statement: [{
         action: ['name/cos:PutObject'],
         effect: 'allow',
         resource: [`qcs::cos:${cosConfig.region}:uid/*:${cosConfig.bucket}/${prefix}*`],
+        condition: {
+          'numeric_less_than_equals': { 'cos:content-length': 10485760 },
+          'string_like': { 'cos:content-type': 'image/*' },
+        },
       }],
     });
 

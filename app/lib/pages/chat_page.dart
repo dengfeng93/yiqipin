@@ -30,15 +30,17 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _init() async {
-    await _socket.connect();
-    _socket.joinCircle(widget.circleId);
     _socket.socket.on('new_msg', (data) {
-      if (mounted) setState(() => _messages.add(Map<String, dynamic>.from(data)));
-      _scrollToBottom();
+      if (mounted) {
+        setState(() => _messages.add(Map<String, dynamic>.from(data)));
+        _scrollToBottom();
+      }
     });
     _socket.socket.on('msg_ack', (data) {
-      final idx = _messages.indexWhere((m) => m['client_id'] == data['client_id']);
-      if (idx >= 0) setState(() => _messages[idx]['id'] = data['msg_id']);
+      if (mounted) {
+        final idx = _messages.indexWhere((m) => m['client_id'] == data['client_id']);
+        if (idx >= 0) setState(() => _messages[idx]['id'] = data['msg_id']);
+      }
     });
     _socket.socket.on('msg_recalled', (data) {
       final msgId = data['msg_id'];
@@ -67,8 +69,11 @@ class _ChatPageState extends State<ChatPage> {
         );
       }
     });
-    _socket.socket.onConnect((_) => setState(() => _connected = true));
-    _socket.socket.onDisconnect((_) => setState(() => _connected = false));
+    _socket.socket.onConnect((_) { if (mounted) setState(() => _connected = true); });
+    _socket.socket.onDisconnect((_) { if (mounted) setState(() => _connected = false); });
+
+    await _socket.connect();
+    _socket.joinCircle(widget.circleId);
 
     try {
       final circleRes = await _api.get('/circles/${widget.circleId}');
@@ -117,6 +122,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    _socket.socket.clearListeners();
     _socket.disconnect();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
@@ -184,10 +190,20 @@ class _ChatPageState extends State<ChatPage> {
                               bottomRight: Radius.circular(isMe ? AppRadius.sm : AppRadius.md),
                             ),
                           ),
-                          child: msg['type'] == 'image'
+                          child: msg['type'] == 'image' && msg['image_url'] != null && (msg['image_url'] as String).isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(AppRadius.sm),
-                                  child: Image.network(msg['image_url'] ?? '', width: 200, fit: BoxFit.cover),
+                                  child: Image.network(
+                                    msg['image_url'] as String,
+                                    width: 200,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 200,
+                                      height: 150,
+                                      color: cs.surfaceContainerHighest,
+                                      child: Icon(Icons.broken_image, color: cs.onSurfaceVariant),
+                                    ),
+                                  ),
                                 )
                               : Text(msg['content'] ?? '',
                                   style: ts.bodyMedium?.copyWith(color: isMe ? cs.onPrimary : cs.onSurface)),

@@ -33,7 +33,20 @@ export class ChatService {
       const target = await this.msgRepo.findOne({ where: { id: before } });
       if (target) where.created_at = LessThan(target.created_at);
     }
-    return this.msgRepo.find({ where, order: { created_at: 'DESC' }, take: limit, relations: { user: true } });
+    const messages = await this.msgRepo.find({
+      where,
+      order: { created_at: 'DESC' },
+      take: limit,
+      relations: { user: true },
+    });
+    return messages.map((msg) => {
+      const { user, ...rest } = msg as any;
+      if (user) {
+        const { wechat_openid, deleted_at, phone, muted_until, ...safeUser } = user;
+        return { ...rest, user: safeUser };
+      }
+      return rest;
+    });
   }
 
   async recall(circleId: string, msgId: string, userId: string) {
@@ -46,8 +59,8 @@ export class ChatService {
 
     msg.is_recalled = true;
     msg.recall_snapshot = { content: msg.content, image_url: msg.image_url, recalled_at: new Date() };
-    msg.content = undefined as any;
-    msg.image_url = undefined as any;
+    msg.content = null as any;
+    msg.image_url = null as any;
     return this.msgRepo.save(msg);
   }
 
@@ -77,6 +90,12 @@ export class ChatService {
       `INSERT INTO violation_records (user_id, circle_id, msg_id, action, reason)
        VALUES ($1, $2, $3, $4, $5)`,
       [userId, circleId, msgId, action, reason],
+    );
+  }
+
+  async muteUser(userId: string, until: string) {
+    await this.msgRepo.manager.query(
+      `UPDATE users SET muted_until = $1 WHERE id = $2`, [until, userId]
     );
   }
 

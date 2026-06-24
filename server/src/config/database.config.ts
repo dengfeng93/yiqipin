@@ -13,8 +13,11 @@ export default registerAs('database', (): TypeOrmModuleOptions => ({
   migrationsRun: false,
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false,
   extra: {
     max: 20,
+    min: 2,
     idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
   },
 }));

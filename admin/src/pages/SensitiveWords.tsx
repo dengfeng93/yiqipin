@@ -26,21 +26,29 @@ export default function SensitiveWords() {
 
   const addWord = async () => {
     if (!newWord.trim()) return;
-    await axios.post('/api/v1/admin/sensitive-words', {
-      word: newWord.trim(),
-      level: newLevel,
-    });
-    message.success('已添加');
-    setModalVisible(false);
-    setNewWord('');
-    setNewLevel(1);
-    fetchWords();
+    try {
+      await axios.post('/api/v1/admin/sensitive-words', {
+        word: newWord.trim(),
+        level: newLevel,
+      });
+      message.success('已添加');
+      setModalVisible(false);
+      setNewWord('');
+      setNewLevel(1);
+      fetchWords();
+    } catch {
+      message.error('添加失败');
+    }
   };
 
   const deleteWord = async (id: string) => {
-    await axios.delete(`/api/v1/admin/sensitive-words/${id}`);
-    message.success('已删除');
-    fetchWords();
+    try {
+      await axios.delete(`/api/v1/admin/sensitive-words/${id}`);
+      message.success('已删除');
+      fetchWords();
+    } catch {
+      message.error('删除失败');
+    }
   };
 
   const columns = [

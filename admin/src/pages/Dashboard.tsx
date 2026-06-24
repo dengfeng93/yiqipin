@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Row, Col, Card, Statistic } from 'antd';
+import { Row, Col, Card, Statistic, Button } from 'antd';
 import {
   TeamOutlined,
   CheckCircleOutlined,
@@ -15,18 +15,35 @@ export default function Dashboard() {
     completion: 0,
     reports: 0,
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const fetchStats = () => {
+    setLoading(true);
+    setError(false);
     axios
       .get('/api/v1/admin/stats')
       .then((res) => setStats(res.data.data))
-      .catch(() => {});
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchStats();
   }, []);
 
   return (
     <>
       <h2>仪表盘</h2>
       <Row gutter={16}>
+        {error && (
+          <Col span={24}>
+            <Card>
+              <p style={{ color: '#ff4d4f' }}>加载失败</p>
+              <Button onClick={fetchStats}>重试</Button>
+            </Card>
+          </Col>
+        )}
         <Col span={6}>
           <Card>
             <Statistic

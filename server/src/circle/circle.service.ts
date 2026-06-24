@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Circle, CircleStatus, StartType, RestrictTag } from './entities/circle.entity';
 import { CircleMember } from './entities/circle-member.entity';
 import { Category } from './entities/category.entity';
@@ -17,6 +17,7 @@ export class CircleService {
     @InjectRepository(CircleMember) private memberRepo: Repository<CircleMember>,
     @InjectRepository(Category) private categoryRepo: Repository<Category>,
     @InjectRepository(WishItem) private wishRepo: Repository<WishItem>,
+    @InjectDataSource() private dataSource: DataSource,
     private redis: RedisService,
     private chatGateway: ChatGateway,
   ) {}
@@ -25,27 +26,36 @@ export class CircleService {
     const category = await this.categoryRepo.findOne({ where: { id: dto.category_id } });
     if (!category) throw new NotFoundException('活动类型不存在');
 
-    const circle = this.circleRepo.create({
-      creator_id: userId,
-      category_id: dto.category_id,
-      title: dto.title || `${category.name}局`,
-      description: dto.description,
-      location: locationToPoint(dto.lat, dto.lng),
-      address: dto.address,
-      range_km: dto.range_km || 3,
-      max_members: dto.max_members || category.default_max_members,
-      start_time: dto.start_time || new Date(),
-      start_type: dto.start_type || StartType.NOW,
-      prep_time: dto.prep_time || 0,
-      restrict_tag: dto.restrict_tag || RestrictTag.ALL,
-      group_rule: dto.group_rule,
-      status: dto.prep_time && dto.prep_time > 0 ? CircleStatus.PREPARING : CircleStatus.ACTIVE,
-    });
-    await this.circleRepo.save(circle);
+    const circle = await this.dataSource.transaction(async (manager) => {
+      const circle = manager.create(Circle, {
+        creator_id: userId,
+        category_id: dto.category_id,
+        title: dto.title || `${category.name}局`,
+        description: dto.description,
+        location: locationToPoint(dto.lat, dto.lng),
+        address: dto.address,
+        range_km: dto.range_km || 3,
+        max_members: dto.max_members || category.default_max_members,
+        start_time: dto.start_time || new Date(),
+        start_type: dto.start_type || StartType.NOW,
+        prep_time: dto.prep_time || 0,
+        restrict_tag: dto.restrict_tag || RestrictTag.ALL,
+        group_rule: dto.group_rule,
+        status: dto.prep_time && dto.prep_time > 0 ? CircleStatus.PREPARING : CircleStatus.ACTIVE,
+      });
+      await manager.save(circle);
 
-    await this.memberRepo.save(this.memberRepo.create({
-      circle_id: circle.id, user_id: userId, role: 'creator',
-    }));
+      await manager.save(manager.create(CircleMember, {
+        circle_id: circle.id, user_id: userId, role: 'creator',
+      }));
+
+      // Increment creator's total_created
+      await manager.query(
+        `UPDATE user_profiles SET total_created = total_created + 1 WHERE user_id = $1`, [userId]
+      );
+
+      return circle;
+    });
 
     const score = circle.start_time.getTime();
     await this.redis.zadd('circles:upcoming', score, circle.id);
@@ -53,8 +63,12 @@ export class CircleService {
     const gridLat = Math.round(dto.lat * 100) / 100;
     const gridLng = Math.round(dto.lng * 100) / 100;
     const redisClient = this.redis.getClient();
-    const keys = await redisClient.keys(`cache:circles:${gridLat}:${gridLng}:*`);
-    if (keys.length > 0) await redisClient.del(keys);
+    let cursor = '0';
+    do {
+      const [c, keys] = await redisClient.scan(cursor, 'MATCH', `cache:circles:${gridLat}:${gridLng}:*`, 'COUNT', 100);
+      cursor = c;
+      if (keys.length > 0) await redisClient.del(keys);
+    } while (cursor !== '0');
 
     return circle;
   }
@@ -118,26 +132,38 @@ export class CircleService {
     const existing = await this.memberRepo.findOne({ where: { circle_id: circleId, user_id: userId } });
     if (existing) throw new ForbiddenException('你已在该圈子中');
 
-    const count = await this.memberRepo.count({ where: { circle_id: circleId } });
-    if (count >= circle.max_members) throw new ForbiddenException('圈子已满');
-
-    // Use DB constraint as safety net against race condition
+    // Use DB constraint as safety net against race condition, with atomic count check
     try {
-      await this.memberRepo.save(this.memberRepo.create({
-        circle_id: circleId, user_id: userId, is_anonymous: isAnonymous,
-      }));
+      await this.memberRepo.manager.query(
+        `INSERT INTO circle_members (circle_id, user_id, is_anonymous)
+         SELECT $1, $2, $3
+         WHERE (SELECT count(*) FROM circle_members WHERE circle_id = $1) < $4`,
+        [circleId, userId, isAnonymous, circle.max_members],
+      );
+      // Verify the insert actually happened (race condition: limit reached)
+      const [countResult] = await this.memberRepo.manager.query(
+        `SELECT count(*)::int AS cnt FROM circle_members WHERE circle_id = $1`, [circleId]
+      );
+      const count = countResult.cnt;
+      if (count > circle.max_members) {
+        // Rollback if we exceeded
+        await this.memberRepo.delete({ circle_id: circleId, user_id: userId });
+        throw new ForbiddenException('圈子已满');
+      }
     } catch (e: any) {
+      if (e instanceof ForbiddenException) throw e;
       if (e.code === '23505') throw new ForbiddenException('你已在该圈子中');
       throw e;
     }
 
-    await this.chatGateway.broadcastSystem(circleId, 'member_joined', {
-      user_id: userId,
-      is_anonymous: isAnonymous,
-      member_count: count + 1,
-    });
+    try {
+      await this.chatGateway.broadcastSystem(circleId, 'member_joined', {
+        user_id: userId,
+        is_anonymous: isAnonymous,
+      });
+    } catch {}
 
-    return { joined: true, member_count: count + 1 };
+    return { joined: true };
   }
 
   async leave(circleId: string, userId: string) {
@@ -176,8 +202,13 @@ export class CircleService {
     return { converted: true };
   }
 
-  async getMembers(circleId: string) {
-    return this.memberRepo.find({ where: { circle_id: circleId }, order: { joined_at: 'ASC' as any } });
+  async getMembers(circleId: string, page = 1, limit = 50) {
+    return this.memberRepo.find({
+      where: { circle_id: circleId },
+      order: { joined_at: 'ASC' as any },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
   }
 
   async update(circleId: string, userId: string, dto: {
@@ -193,7 +224,27 @@ export class CircleService {
     }
 
     Object.assign(circle, dto);
-    return this.circleRepo.save(circle);
+    const saved = await this.circleRepo.save(circle);
+
+    // Invalidate nearby cache
+    const locMatch = (circle.location as string).match(/POINT\(([-\d.]+) ([-\d.]+)\)/i);
+    if (locMatch) {
+      const gridLat = Math.round(parseFloat(locMatch[2]) * 100) / 100;
+      const gridLng = Math.round(parseFloat(locMatch[1]) * 100) / 100;
+      await this.invalidateCache(gridLat, gridLng);
+    }
+
+    return saved;
+  }
+
+  private async invalidateCache(gridLat: number, gridLng: number) {
+    const redisClient = this.redis.getClient();
+    let cursor = '0';
+    do {
+      const [c, keys] = await redisClient.scan(cursor, 'MATCH', `cache:circles:${gridLat}:${gridLng}:*`, 'COUNT', 100);
+      cursor = c;
+      if (keys.length > 0) await redisClient.del(keys);
+    } while (cursor !== '0');
   }
 
   async checkin(circleId: string, userId: string, userLat: number, userLng: number) {
@@ -262,7 +313,7 @@ export class CircleService {
     let query = this.circleRepo.createQueryBuilder('c')
       .where('ST_DWithin(c.location, ST_GeomFromText(:point, 0), :range)', { point, range: rangeMeters })
       .andWhere('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
-      .andWhere('c.creator_id NOT IN (SELECT id FROM users WHERE is_incognito = true)')
+      .andWhere('c.creator_id NOT IN (SELECT id FROM users WHERE is_incognito = true OR deleted_at IS NOT NULL)')
       .leftJoin('user_profiles', 'up', 'up.user_id = c.creator_id')
       .select([
         'c.id', 'c.creator_id', 'c.category_id', 'c.title', 'c.description',

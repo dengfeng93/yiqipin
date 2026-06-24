@@ -45,9 +45,14 @@ export class WishpoolService {
       title: title || (category ? `想去${category.name}` : '心愿'),
       location: locationToPoint(lat, lng),
     });
-    await this.wishRepo.save(wish);
+    try {
+      await this.wishRepo.save(wish);
+    } catch (e: any) {
+      if (e.code === '23505') return { duplicate: true, wish_id: null };
+      throw e;
+    }
 
-    await this.checkThreshold(categoryId, lat, lng);
+    this.checkThreshold(categoryId, lat, lng).catch(() => {});
     return { created: true, wish_id: wish.id };
   }
 
@@ -74,7 +79,7 @@ export class WishpoolService {
     if (!category) return;
 
     const lockKey = `wish-threshold:${categoryId}:${Math.round(lat * 100)}:${Math.round(lng * 100)}`;
-    const token = await this.redis.lock(lockKey, 10000);
+    const token = await this.redis.lock(lockKey, 30000);
     if (!token) return;
 
     try {
