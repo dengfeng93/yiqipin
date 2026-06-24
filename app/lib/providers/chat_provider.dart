@@ -47,6 +47,19 @@ class ChatNotifier extends StateNotifier<ChatState> {
   Future<void> initSocket() async {
     if (_socketInitialized) return;
     await _socket.connect();
+
+    _socket.socket.on('connect', (_) {
+      state = state.copyWith(
+        connectedStatus: {...state.connectedStatus, '': true},
+      );
+    });
+
+    _socket.socket.on('disconnect', (_) {
+      state = state.copyWith(
+        connectedStatus: {...state.connectedStatus, '': false},
+      );
+    });
+
     _socket.socket.on('new_msg', (data) {
       final circleId = data['circle_id'] as String;
       final msgs = List<Map<String, dynamic>>.from(

@@ -36,13 +36,25 @@ export class UserService {
   }
 
   async getMyCircles(userId: string): Promise<any[]> {
-    // Placeholder - will query circle_members in Plan 2
-    return [];
+    return this.userRepo.query(
+      `SELECT c.*, cm.role, cm.joined_at
+       FROM circles c
+       INNER JOIN circle_members cm ON cm.circle_id = c.id
+       WHERE cm.user_id = $1
+       ORDER BY cm.joined_at DESC`,
+      [userId],
+    );
   }
 
   async getReviews(userId: string): Promise<any[]> {
-    // Placeholder - will query user_reviews in Plan 2
-    return [];
+    return this.userRepo.query(
+      `SELECT ur.*, u.nickname AS reviewer_nickname, u.avatar AS reviewer_avatar
+       FROM user_reviews ur
+       LEFT JOIN users u ON u.id = ur.reviewer_id
+       WHERE ur.target_user_id = $1
+       ORDER BY ur.created_at DESC`,
+      [userId],
+    );
   }
 
   async getProfile(userId: string): Promise<UserProfile | null> {

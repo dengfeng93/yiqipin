@@ -104,4 +104,21 @@ export class CircleSchedulerService {
       await this.redis.unlock('cron:wish-expiry', lockToken);
     }
   }
+
+  @Cron('0 4 * * *')
+  async cleanDeletedAccounts() {
+    const lockToken = await this.redis.lock('cron:clean-accounts', 59 * 60 * 1000);
+    if (!lockToken) return;
+
+    try {
+      const result = await this.entityManager.query(`
+        DELETE FROM users
+        WHERE deleted_at IS NOT NULL
+        AND deleted_at + INTERVAL '30 days' <= NOW()
+      `);
+      this.logger.log(`Cleaned ${result[1]} deleted accounts`);
+    } finally {
+      await this.redis.unlock('cron:clean-accounts', lockToken);
+    }
+  }
 }

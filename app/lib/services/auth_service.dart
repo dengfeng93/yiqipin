@@ -20,6 +20,20 @@ class AuthService {
     return res.data['data'] as Map<String, dynamic>?;
   }
 
+  Future<Map<String, dynamic>?> refreshToken() async {
+    final refreshToken = await _storage.read(key: 'refresh_token');
+    if (refreshToken == null) return null;
+    try {
+      final res = await _api.post('/auth/refresh', data: {'refreshToken': refreshToken});
+      final data = res.data['data'];
+      await _storage.write(key: 'access_token', value: data['accessToken']);
+      await _storage.write(key: 'refresh_token', value: data['refreshToken']);
+      return data;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> logout() async {
     await _storage.deleteAll();
   }

@@ -7,6 +7,8 @@ class Circle {
   final String title;
   final String? description;
   final String? address;
+  final double? lat;
+  final double? lng;
   final double? distance;
   final int maxMembers;
   final int memberCount;
@@ -25,6 +27,8 @@ class Circle {
     required this.title,
     this.description,
     this.address,
+    this.lat,
+    this.lng,
     this.distance,
     required this.maxMembers,
     this.memberCount = 0,
@@ -44,6 +48,8 @@ class Circle {
         title: json['title'],
         description: json['description'],
         address: json['address'],
+        lat: (json['lat'] as num?)?.toDouble(),
+        lng: (json['lng'] as num?)?.toDouble(),
         distance: (json['distance'] as num?)?.toDouble(),
         memberCount: json['member_count'] ?? 0,
         maxMembers: json['max_members'] ?? 100,

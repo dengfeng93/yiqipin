@@ -7,6 +7,7 @@ class CircleMessage {
   final String? content;
   final String? imageUrl;
   final bool isRecalled;
+  final Map<String, dynamic>? recallSnapshot;
   final DateTime createdAt;
 
   CircleMessage({
@@ -18,6 +19,7 @@ class CircleMessage {
     this.content,
     this.imageUrl,
     this.isRecalled = false,
+    this.recallSnapshot,
     required this.createdAt,
   });
 
@@ -30,6 +32,9 @@ class CircleMessage {
         content: json['content'],
         imageUrl: json['image_url'],
         isRecalled: json['is_recalled'] ?? false,
+        recallSnapshot: json['recall_snapshot'] != null
+            ? Map<String, dynamic>.from(json['recall_snapshot'])
+            : null,
         createdAt: DateTime.parse(json['created_at']),
       );
 

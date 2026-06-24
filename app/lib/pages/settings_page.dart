@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -9,6 +10,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final _api = ApiService();
+  final _auth = AuthService();
   bool _incognito = false;
   bool _msgNotify = true;
   bool _sysNotify = true;
@@ -104,8 +106,15 @@ class _SettingsPageState extends State<SettingsPage> {
                                   Navigator.pop(ctx),
                               child: const Text('取消')),
                           TextButton(
-                              onPressed: () =>
-                                  Navigator.pop(ctx),
+                              onPressed: () async {
+                                await _api.delete('/auth/me');
+                                await _auth.logout();
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  Navigator.pushNamedAndRemoveUntil(
+                                      context, '/login', (_) => false);
+                                }
+                              },
                               child: const Text('确认注销',
                                   style: TextStyle(
                                       color: Colors.red))),

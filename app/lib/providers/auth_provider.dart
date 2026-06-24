@@ -31,10 +31,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthState(isLoggedIn: true, user: res.data['data']);
         return;
       } catch (_) {
+        // Token expired, try refresh
+        final refreshed = await refreshToken();
+        if (refreshed) return;
         await _storage.deleteAll();
       }
     }
-    state = AuthState(isLoggedIn: true);
+    // Not logged in — caller should navigate to WeChat login
+    state = AuthState();
+  }
+
+  Future<bool> refreshToken() async {
+    final rt = await _storage.read(key: 'refresh_token');
+    if (rt == null) return false;
+    try {
+      final res = await _api.post('/auth/refresh', data: {'refreshToken': rt});
+      final data = res.data['data'];
+      await _storage.write(key: 'access_token', value: data['accessToken']);
+      await _storage.write(key: 'refresh_token', value: data['refreshToken']);
+      try {
+        final me = await _api.get('/auth/me');
+        state = AuthState(isLoggedIn: true, user: me.data['data']);
+      } catch (_) {
+        state = AuthState(isLoggedIn: true);
+      }
+      return true;
+    } catch (_) {
+      await _storage.deleteAll();
+      state = AuthState();
+      return false;
+    }
   }
 
   Future<void> logout() async {
@@ -49,8 +75,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final res = await _api.get('/auth/me');
         state = AuthState(isLoggedIn: true, user: res.data['data']);
       } catch (_) {
-        await _storage.deleteAll();
-        state = AuthState();
+        // Try refresh
+        final ok = await refreshToken();
+        if (!ok) {
+          await _storage.deleteAll();
+          state = AuthState();
+        }
       }
     }
   }
