@@ -30,15 +30,19 @@ export class WishpoolService {
       .getRawMany();
   }
 
-  async addOne(userId: string, categoryId: string, lat: number, lng: number) {
+  async addOne(userId: string, categoryId: string, lat: number, lng: number, title?: string) {
     const existing = await this.wishRepo.findOne({
       where: { user_id: userId, category_id: categoryId, status: WishStatus.WAITING },
     });
     if (existing) return { duplicate: true, wish_id: existing.id };
 
+    const category = await this.categoryRepo.findOne({ where: { id: categoryId } });
     const wish = this.wishRepo.create({
       user_id: userId,
       category_id: categoryId,
+      lat,
+      lng,
+      title: title || (category ? `想去${category.name}` : '心愿'),
       location: locationToPoint(lat, lng),
     });
     await this.wishRepo.save(wish);

@@ -10,7 +10,7 @@ export default function WishpoolThreshold() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/v1/admin/categories');
+      const res = await axios.get('/api/v1/categories');
       setCategories(res.data.data);
     } finally {
       setLoading(false);
@@ -25,7 +25,7 @@ export default function WishpoolThreshold() {
     setSaving((prev) => ({ ...prev, [id]: true }));
     try {
       await axios.patch(`/api/v1/admin/categories/${id}/threshold`, {
-        wish_threshold: value,
+        threshold: value,
       });
       message.success('已更新');
     } finally {

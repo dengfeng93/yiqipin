@@ -20,7 +20,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _login() async {
     await ref.read(authProvider.notifier).login();
     if (mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+      final isLoggedIn = ref.read(authProvider).isLoggedIn;
+      if (isLoggedIn) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     }
   }
 

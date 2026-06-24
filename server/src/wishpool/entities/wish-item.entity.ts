@@ -4,6 +4,7 @@ export enum WishStatus {
   WAITING = 'waiting',
   FULFILLED = 'fulfilled',
   EXPIRED = 'expired',
+  CONVERTED = 'converted',
 }
 
 @Entity('wish_items')
@@ -30,10 +31,10 @@ export class WishItem {
   @Index({ spatial: true })
   location!: string;
 
-  @Column({ default: 3 })
+  @Column({ default: 10 })
   max_members!: number;
 
-  @Column({ default: 0 })
+  @Column({ default: 1 })
   wish_count!: number;
 
   @Column({ default: 3 })
@@ -42,7 +43,7 @@ export class WishItem {
   @Column({ type: 'uuid', nullable: true })
   converted_circle_id!: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   expires_at!: Date;
 
   @Column({ type: 'enum', enum: WishStatus, default: WishStatus.WAITING })

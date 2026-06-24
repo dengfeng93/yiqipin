@@ -27,7 +27,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     try {
       final res = await _api.get('/users/me');
-      final user = res.data;
+      final user = res.data['data'];
       if (mounted) {
         setState(() {
           _incognito = user['is_incognito'] ?? false;
@@ -57,14 +57,14 @@ class _SettingsPageState extends State<SettingsPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(children: [
-              _sectionTitle('隐私', ts),
+              const _SectionTitle('隐私'),
               SwitchListTile(
                 title: Text('隐身模式', style: ts.bodyLarge),
                 subtitle: Text('开启后附近圈子不显示你的位置', style: ts.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                 value: _incognito,
                 onChanged: _toggleIncognito,
               ),
-              _sectionTitle('通知', ts),
+              const _SectionTitle('通知'),
               SwitchListTile(
                 title: Text('消息通知', style: ts.bodyLarge),
                 subtitle: Text('圈子新消息推送', style: ts.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
@@ -77,7 +77,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 value: _sysNotify,
                 onChanged: (v) => setState(() => _sysNotify = v),
               ),
-              _sectionTitle('账号', ts),
+              const _SectionTitle('账号'),
               ListTile(
                 title: Text('手机号', style: ts.bodyLarge),
                 trailing: Text(_phone.isNotEmpty ? _phone : '未绑定', style: ts.bodyLarge?.copyWith(color: cs.onSurfaceVariant)),
@@ -86,7 +86,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: Text('微信绑定', style: ts.bodyLarge),
                 trailing: const Text('已绑定', style: TextStyle(color: AppColors.success)),
               ),
-              _sectionTitle('关于', ts),
+              const _SectionTitle('关于'),
               const ListTile(title: Text('版本'), trailing: Text('v1.0.0')),
               ListTile(
                 title: const Text('注销账号'),

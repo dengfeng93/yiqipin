@@ -35,7 +35,11 @@ class _WishpoolPageState extends State<WishpoolPage> {
   }
 
   Future<void> _joinWish(String wishId) async {
-    await _api.post('/wishes/$wishId/join');
+    try {
+      await _api.post('/wishes/$wishId/join');
+    } catch (_) {
+      return;
+    }
     _loadWishes();
   }
 

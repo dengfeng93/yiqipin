@@ -51,10 +51,10 @@ export class Circle {
   @Column({ type: 'decimal', precision: 3, scale: 1, default: 3 })
   range_km!: number;
 
-  @Column({ default: 100 })
+  @Column({ default: 10 })
   max_members!: number;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamptz' })
   start_time!: Date;
 
   @Column({ default: 0 })
@@ -63,7 +63,7 @@ export class Circle {
   @Column({ type: 'enum', enum: StartType, default: StartType.NOW })
   start_type!: StartType;
 
-  @Column({ type: 'enum', enum: CircleStatus, default: CircleStatus.ACTIVE })
+  @Column({ type: 'enum', enum: CircleStatus, default: CircleStatus.PREPARING })
   status!: CircleStatus;
 
   @Column({ type: 'enum', enum: RestrictTag, default: RestrictTag.ALL })

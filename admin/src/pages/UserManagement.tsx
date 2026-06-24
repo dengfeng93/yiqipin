@@ -11,7 +11,7 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/v1/admin/users', { params: { q: search } });
+      const res = await axios.get('/api/v1/admin/users', { params: { keyword: search } });
       setUsers(res.data.data);
     } finally {
       setLoading(false);
