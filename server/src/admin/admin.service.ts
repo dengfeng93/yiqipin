@@ -115,6 +115,24 @@ export class AdminService {
         );
         await this.db.query(`UPDATE users SET deleted_at = NOW() WHERE id = $1`, [report.target_user_id]);
       }
+    } else {
+      const [reporter] = await this.db.query(
+        `SELECT reporter_id FROM reports WHERE id = $1`, [reportId]
+      );
+      if (reporter) {
+        const [maliciousCount] = await this.db.query(
+          `SELECT count(*)::int AS cnt FROM reports
+           WHERE reporter_id = $1 AND status = 'dismissed'`,
+          [reporter.reporter_id]
+        );
+        if (maliciousCount.cnt >= 3) {
+          await this.db.query(
+            `INSERT INTO violation_records (user_id, action, reason)
+             VALUES ($1, 'warn', 'malicious_report dismissed_count=' || $2)`,
+            [reporter.reporter_id, maliciousCount.cnt]
+          );
+        }
+      }
     }
     await this.db.query(`UPDATE reports SET status = $1, handled_by = 'admin' WHERE id = $2`,
       [action === 'dismiss' ? 'dismissed' : 'reviewed', reportId]);
