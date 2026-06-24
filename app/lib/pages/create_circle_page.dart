@@ -109,64 +109,79 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
     return Scaffold(
       appBar: AppBar(title: Text('创建圈子 — 第$_step步')),
       body: _step == 1 ? _buildStep1(cs) : _step == 2 ? _buildStep2(cs, ts) : _buildStep3(cs, ts),
-      bottomNavigationBar: _step > 1
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Row(children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => setState(() => _step--),
-                      child: const Text('上一步'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.lg),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _step == 3 ? _publish : () => setState(() => _step++),
-                      child: Text(_step == 3 ? '确认发布' : '下一步'),
-                    ),
-                  ),
-                ]),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Row(children: [
+            if (_step > 1) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => setState(() => _step--),
+                  child: const Text('上一步'),
+                ),
               ),
-            )
-          : null,
+              const SizedBox(width: AppSpacing.lg),
+            ],
+            Expanded(
+              child: FilledButton(
+                onPressed: _step == 1
+                    ? (_selectedCategoryId != null ? () => setState(() => _step = 2) : null)
+                    : _step == 2
+                        ? () => setState(() => _step = 3)
+                        : _publish,
+                child: Text(_step == 3 ? '确认发布' : '下一步'),
+              ),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 
   Widget _buildStep1(ColorScheme cs) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4, mainAxisSpacing: AppSpacing.md, crossAxisSpacing: AppSpacing.md,
+    return Column(children: [
+      if (_selectedCategoryName != null)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+          color: cs.primaryContainer.withOpacity(0.3),
+          child: Text('已选择: $_selectedCategoryName',
+              style: TextStyle(color: cs.primary, fontWeight: FontWeight.w500)),
+        ),
+      Expanded(
+        child: GridView.builder(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4, mainAxisSpacing: AppSpacing.md, crossAxisSpacing: AppSpacing.md,
+          ),
+          itemCount: _categories.length,
+          itemBuilder: (_, i) {
+            final cat = _categories[i];
+            final icon = _iconMap[cat['icon']] ?? Icons.circle;
+            final selected = _selectedCategoryId == cat['id'];
+            return GestureDetector(
+              onTap: () => setState(() {
+                _selectedCategoryId = cat['id'];
+                _selectedCategoryName = cat['name'];
+                _maxMembers = cat['default_size'] ?? 10;
+              }),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: selected ? cs.primary : cs.surfaceContainerHighest,
+                  child: Icon(icon, color: selected ? cs.onPrimary : cs.onSurfaceVariant, size: 24),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  cat['name'] ?? '',
+                  style: TextStyle(fontSize: 12, color: selected ? cs.primary : cs.onSurface),
+                ),
+              ]),
+            );
+          },
+        ),
       ),
-      itemCount: _categories.length,
-      itemBuilder: (_, i) {
-        final cat = _categories[i];
-        final icon = _iconMap[cat['icon']] ?? Icons.circle;
-        final selected = _selectedCategoryId == cat['id'];
-        return GestureDetector(
-          onTap: () => setState(() {
-            _selectedCategoryId = cat['id'];
-            _selectedCategoryName = cat['name'];
-            _maxMembers = cat['default_size'] ?? 10;
-            _step = 2;
-          }),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: selected ? cs.primary : cs.surfaceContainerHighest,
-              child: Icon(icon, color: selected ? cs.onPrimary : cs.onSurfaceVariant, size: 24),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              cat['name'] ?? '',
-              style: TextStyle(fontSize: 12, color: selected ? cs.primary : cs.onSurface),
-            ),
-          ]),
-        );
-      },
-    );
+    ]);
   }
 
   Widget _buildStep2(ColorScheme cs, TextTheme ts) {
