@@ -15,7 +15,7 @@ class BottomNav extends StatelessWidget {
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.explore), label: '发现'),
         BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: '消息'),
-        BottomNavigationBarItem(icon: SizedBox.shrink(), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline, size: 32), label: '创建'),
         BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: '我的'),
       ],
     );

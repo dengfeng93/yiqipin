@@ -131,6 +131,10 @@ class _HomePageState extends ConsumerState<HomePage> {
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: BottomNav(currentIndex: _tabIndex, onTap: (i) {
+        if (i == 2) {
+          Navigator.pushNamed(context, '/create-circle');
+          return;
+        }
         setState(() => _tabIndex = i);
         if (i == 1) Navigator.pushNamed(context, '/messages');
         if (i == 3) Navigator.pushNamed(context, '/profile');
