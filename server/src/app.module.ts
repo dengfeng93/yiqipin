@@ -12,6 +12,8 @@ import { AdminModule } from './admin/admin.module';
 import { CircleModule } from './circle/circle.module';
 import { WishpoolModule } from './wishpool/wishpool.module';
 import { ChatModule } from './chat/chat.module';
+import { UploadModule } from './upload/upload.module';
+import { ReviewModule } from './review/review.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
@@ -35,6 +37,8 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
     CircleModule,
     WishpoolModule,
     ChatModule,
+    UploadModule,
+    ReviewModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
