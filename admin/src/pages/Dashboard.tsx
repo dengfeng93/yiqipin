@@ -1,0 +1,70 @@
+import { useEffect, useState } from 'react';
+import { Row, Col, Card, Statistic } from 'antd';
+import {
+  TeamOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+  ClockCircleOutlined,
+} from '@ant-design/icons';
+import axios from 'axios';
+
+export default function Dashboard() {
+  const [stats, setStats] = useState({
+    users: 0,
+    circles: 0,
+    completion: 0,
+    reports: 0,
+  });
+
+  useEffect(() => {
+    axios
+      .get('/api/v1/admin/stats')
+      .then((res) => setStats(res.data.data))
+      .catch(() => {});
+  }, []);
+
+  return (
+    <>
+      <h2>仪表盘</h2>
+      <Row gutter={16}>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="总用户数"
+              value={stats.users}
+              prefix={<TeamOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="今日圈子"
+              value={stats.circles}
+              prefix={<ClockCircleOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="成局率"
+              value={stats.completion}
+              suffix="%"
+              prefix={<CheckCircleOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="待审举报"
+              value={stats.reports}
+              prefix={<WarningOutlined />}
+            />
+          </Card>
+        </Col>
+      </Row>
+    </>
+  );
+}

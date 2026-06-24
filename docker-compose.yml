@@ -1,0 +1,68 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yiqipin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_USER: yiqipin
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: yiqipin
+    ports: ['5432:5432']
+    volumes: [pgdata:/var/lib/postgresql/data]
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports: ['6379:6379']
+
+  api:
+    build: ./server
+    container_name: yiqipin-api
+    restart: always
+    ports: ['3000:3000']
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on: [postgres, redis]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.worker
+    restart: always
+    container_name: yiqipin-worker
+    environment:
+      - APP_ROLE=worker
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on: [postgres, redis]
+    healthcheck:
+      test: ['CMD-SHELL', 'pgrep -f "main.worker" > /dev/null || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  admin:
+    build: ./admin
+    restart: always
+    container_name: yiqipin-admin
+    ports: ['5173:80']
+
+volumes:
+  pgdata:
