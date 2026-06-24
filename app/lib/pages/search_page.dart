@@ -78,14 +78,21 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             border: InputBorder.none,
             hintStyle: ts.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
           ),
-          onSubmitted: _search,
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (v) {
+            if (v.trim().isEmpty) return;
+            _search(v);
+          },
         ),
         actions: [
           if (_searchCtrl.text.isNotEmpty)
-            IconButton(icon: const Icon(Icons.clear), onPressed: () {
-              _searchCtrl.clear();
-              setState(() { _results.clear(); _hasSearched = false; });
-            }),
+            IconButton(
+              icon: Icon(Icons.clear, color: cs.onSurfaceVariant),
+              onPressed: () {
+                _searchCtrl.clear();
+                setState(() { _results.clear(); _hasSearched = false; });
+              },
+            ),
         ],
       ),
       body: Column(children: [
