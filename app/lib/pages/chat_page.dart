@@ -30,6 +30,9 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _init() async {
+    await _socket.connect();
+    _socket.joinCircle(widget.circleId);
+
     _socket.socket.on('new_msg', (data) {
       if (mounted) {
         setState(() => _messages.add(Map<String, dynamic>.from(data)));
@@ -72,9 +75,6 @@ class _ChatPageState extends State<ChatPage> {
     _socket.socket.onConnect((_) { if (mounted) setState(() => _connected = true); });
     _socket.socket.onDisconnect((_) { if (mounted) setState(() => _connected = false); });
 
-    await _socket.connect();
-    _socket.joinCircle(widget.circleId);
-
     try {
       final circleRes = await _api.get('/circles/${widget.circleId}');
       _circle = circleRes.data['data'];
@@ -95,7 +95,13 @@ class _ChatPageState extends State<ChatPage> {
 
   void _sendMessage(String content) {
     if (content.trim().isEmpty) return;
-    final clientId = '${DateTime.now().millisecondsSinceEpoch}_${_clientIdCounter++}';
+    if (!_connected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('连接已断开，消息可能发送失败'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+    final clientId = '${DateTime.now().microsecondsSinceEpoch}_${_clientIdCounter++}';
     _socket.sendMessage(widget.circleId, content, clientId);
     setState(() => _messages.add({
       'client_id': clientId,
@@ -122,7 +128,6 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    _socket.socket.clearListeners();
     _socket.disconnect();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
@@ -213,7 +218,7 @@ class _ChatPageState extends State<ChatPage> {
                   },
                 ),
               ),
-              _buildQuickBar(cs),
+              if (MediaQuery.of(context).viewInsets.bottom == 0) _buildQuickBar(cs),
               if (!_isCircleEnded) _buildInputBar(cs),
             ]),
     );
