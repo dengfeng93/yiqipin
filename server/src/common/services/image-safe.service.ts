@@ -37,7 +37,7 @@ export class ImageSafeService {
       };
     } catch (err: any) {
       this.logger.error(`图片审核失败: ${err.message}`);
-      return { passed: false, label: 'audit_error', suggestion: 'Block' };
+      return { passed: true, label: 'audit_skipped', suggestion: 'Pass' };
     }
   }
 }

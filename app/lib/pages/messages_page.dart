@@ -49,20 +49,27 @@ class _MessagesPageState extends State<MessagesPage> {
     }
   }
 
+  DateTime _safeParse(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return DateTime(2000);
+    try {
+      return DateTime.parse(dateStr);
+    } catch (_) {
+      return DateTime(2000);
+    }
+  }
+
   int _unreadCount(Map<String, dynamic> circle) {
-    if (circle['status'] == 'ended') return 0;
-    final lastRead = circle['last_read_at'] != null
-        ? DateTime.parse(circle['last_read_at'])
-        : DateTime(2000);
-    final lastMsg = circle['last_message_at'] != null
-        ? DateTime.parse(circle['last_message_at'])
-        : DateTime(2000);
+    if (circle['status'] == 'archived' || circle['status'] == 'dissolved') return 0;
+    final lastRead = _safeParse(circle['last_read_at']);
+    final lastMsg = _safeParse(circle['last_message_at']);
     return lastMsg.isAfter(lastRead) ? 1 : 0;
   }
 
   String _timeLabel(String dateStr) {
     if (dateStr.isEmpty) return '';
-    final diff = DateTime.now().difference(DateTime.parse(dateStr));
+    final parsed = _safeParse(dateStr);
+    if (parsed == DateTime(2000)) return '';
+    final diff = DateTime.now().difference(parsed);
     if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
     if (diff.inHours < 24) return '${diff.inHours}小时前';
     return '${diff.inDays}天前';

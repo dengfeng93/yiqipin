@@ -51,11 +51,12 @@ export class UploadService {
       region: cosConfig.region,
       prefix,
       credentials: {
-        tmpSecretId: secretId,
-        tmpSecretKey: rawKey.substring(0, 32) + Date.now().toString(16),
+        tmpSecretId: 'STS.' + crypto.randomBytes(16).toString('hex'),
+        tmpSecretKey: crypto.randomBytes(32).toString('hex'),
         sessionToken: crypto.randomBytes(32).toString('base64'),
         expiredTime,
         startTime,
+        note: 'STS credentials placeholder — use qcloud-cos-sts SDK in production',
       },
     };
   }

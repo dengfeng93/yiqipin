@@ -58,6 +58,10 @@ class _ChatPageState extends State<ChatPage> {
     });
     _socket.socket.on('error', (data) {
       if (mounted) {
+        final clientId = data['client_id'];
+        if (clientId != null) {
+          setState(() => _messages.removeWhere((m) => m['client_id'] == clientId));
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data['message'] ?? '发送失败'), backgroundColor: AppColors.error),
         );
@@ -82,9 +86,11 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom(animate: false);
   }
 
+  int _clientIdCounter = 0;
+
   void _sendMessage(String content) {
     if (content.trim().isEmpty) return;
-    final clientId = '${DateTime.now().millisecondsSinceEpoch}';
+    final clientId = '${DateTime.now().millisecondsSinceEpoch}_${_clientIdCounter++}';
     _socket.sendMessage(widget.circleId, content, clientId);
     setState(() => _messages.add({
       'client_id': clientId,

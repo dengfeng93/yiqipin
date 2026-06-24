@@ -31,10 +31,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   Future<void> _completeOnboarding() async {
-    await ref.read(locationProvider.notifier).getCurrentLocation();
+    try {
+      await ref.read(locationProvider.notifier).getCurrentLocation();
+    } catch (_) {}
+    if (!mounted) return;
     if (_selectedTags.isNotEmpty) {
-      await _api.patch('/users/me', {'interests': _selectedTags.toList()});
+      try {
+        await _api.patch('/users/me', {'interests': _selectedTags.toList()});
+      } catch (_) {}
     }
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/login');
   }
 

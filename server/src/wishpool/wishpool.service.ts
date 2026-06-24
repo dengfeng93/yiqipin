@@ -61,7 +61,11 @@ export class WishpoolService {
   }
 
   async cancel(userId: string, wishId: string) {
-    await this.wishRepo.update({ id: wishId, user_id: userId }, { status: WishStatus.EXPIRED } as any);
+    const result = await this.wishRepo.update(
+      { id: wishId, user_id: userId, status: WishStatus.WAITING },
+      { status: WishStatus.EXPIRED } as any,
+    );
+    if (result.affected === 0) throw new NotFoundException('心愿不存在或无法取消');
     return { cancelled: true };
   }
 
@@ -82,10 +86,13 @@ export class WishpoolService {
         .getCount();
 
       if (count >= category.wish_threshold) {
-        const firstWish = await this.wishRepo.findOne({
-          where: { category_id: categoryId, status: WishStatus.WAITING },
-          order: { created_at: 'ASC' },
-        });
+        const point = locationToPoint(lat, lng);
+        const firstWish = await this.wishRepo.createQueryBuilder('w')
+          .where(`ST_DWithin(w.location, ST_GeomFromText(:point, 0), 10000)`, { point })
+          .andWhere('w.category_id = :cid', { cid: categoryId })
+          .andWhere('w.status = :status', { status: WishStatus.WAITING })
+          .orderBy('w.created_at', 'ASC')
+          .getOne();
         if (firstWish) {
           const circle = await this.circleService.create(firstWish.user_id, {
             category_id: categoryId,
@@ -94,10 +101,13 @@ export class WishpoolService {
             title: `[心愿成局] ${category.name}`,
           } as any);
 
-          await this.wishRepo.update(
-            { category_id: categoryId, status: WishStatus.WAITING },
-            { status: WishStatus.FULFILLED } as any,
-          );
+          await this.wishRepo.createQueryBuilder()
+            .update()
+            .set({ status: WishStatus.FULFILLED } as any)
+            .where(`ST_DWithin(location, ST_GeomFromText(:point, 0), 10000)`, { point })
+            .andWhere('category_id = :cid', { cid: categoryId })
+            .andWhere('status = :status', { status: WishStatus.WAITING })
+            .execute();
 
           await this.chatGateway.broadcastSystem(circle.id, 'wish_fulfilled', {
             category_id: categoryId,

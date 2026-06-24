@@ -41,10 +41,12 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _toggleIncognito(bool v) async {
+    setState(() => _incognito = v);
     try {
       await _api.post('/users/me/incognito');
-      setState(() => _incognito = v);
-    } catch (_) {}
+    } catch (_) {
+      setState(() => _incognito = !v);
+    }
   }
 
   @override
@@ -108,11 +110,19 @@ class _SettingsPageState extends State<SettingsPage> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           TextButton(
             onPressed: () async {
-              await _api.delete('/auth/me');
-              await _auth.logout();
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-                Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+              try {
+                await _api.delete('/auth/me');
+                await _auth.logout();
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+                }
+              } catch (_) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('注销失败，请稍后重试'), backgroundColor: AppColors.error),
+                  );
+                }
               }
             },
             child: const Text('确认注销', style: TextStyle(color: AppColors.error)),

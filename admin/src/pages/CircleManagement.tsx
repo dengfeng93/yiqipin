@@ -39,7 +39,7 @@ export default function CircleManagement() {
 
   const columns = [
     { title: '圈子名称', dataIndex: 'title' },
-    { title: '创建者', dataIndex: 'creator_nickname' },
+    { title: '创建者', dataIndex: 'creator_name' },
     {
       title: '成员',
       render: (_: any, r: any) => `${r.member_count}/${r.max_members}`,

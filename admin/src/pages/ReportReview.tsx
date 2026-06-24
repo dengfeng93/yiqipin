@@ -41,8 +41,8 @@ export default function ReportReview() {
   };
 
   const columns = [
-    { title: '举报人', dataIndex: 'reporter_nickname' },
-    { title: '被举报人', dataIndex: 'target_nickname' },
+    { title: '举报人', dataIndex: 'reporter_name' },
+    { title: '被举报人', dataIndex: 'target_name' },
     {
       title: '类型',
       dataIndex: 'type',
@@ -115,10 +115,10 @@ export default function ReportReview() {
         {selectedReport && (
           <>
             <p>
-              <b>举报人:</b> {selectedReport.reporter_nickname}
+              <b>举报人:</b> {selectedReport.reporter_name}
             </p>
             <p>
-              <b>被举报人:</b> {selectedReport.target_nickname}
+              <b>被举报人:</b> {selectedReport.target_name}
             </p>
             <p>
               <b>类型:</b> {selectedReport.type}

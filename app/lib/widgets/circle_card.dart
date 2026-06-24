@@ -24,12 +24,12 @@ class CircleCard extends StatelessWidget {
 
     return GestureDetector(
       onVerticalDragEnd: (details) {
-        if (details.primaryVelocity! < -300) onJoin();
+        if ((details.primaryVelocity ?? 0) < -300) onJoin();
       },
       onHorizontalDragEnd: (details) {
-        if (details.primaryVelocity! > 300) {
+        if ((details.primaryVelocity ?? 0) > 300) {
           onDetail();
-        } else if (details.primaryVelocity! < -300) {
+        } else if ((details.primaryVelocity ?? 0) < -300) {
           onSkip();
         }
       },

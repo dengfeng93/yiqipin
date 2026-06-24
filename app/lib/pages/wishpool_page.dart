@@ -75,6 +75,7 @@ class _WishpoolPageState extends State<WishpoolPage> {
               : RefreshIndicator(
                   onRefresh: _loadWishes,
                   child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: _wishes.length,
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     itemBuilder: (_, i) {

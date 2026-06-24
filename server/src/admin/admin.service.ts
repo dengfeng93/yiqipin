@@ -13,8 +13,11 @@ export class AdminService {
   ) {}
 
   async login(username: string, password: string) {
-    const adminUser = process.env.ADMIN_USERNAME || 'admin';
-    const adminPass = process.env.ADMIN_PASSWORD || 'yiqipin2026';
+    const adminUser = process.env.ADMIN_USERNAME;
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (!adminUser || !adminPass) {
+      throw new UnauthorizedException('管理员账号未配置');
+    }
     if (username !== adminUser || password !== adminPass) {
       throw new UnauthorizedException('用户名或密码错误');
     }
@@ -50,7 +53,8 @@ export class AdminService {
       params.push(`%${keyword}%`);
     }
     const [data] = await this.db.query(
-      `SELECT u.id, u.nickname, u.phone, u.role, u.created_at,
+      `SELECT u.id, u.nickname, u.phone, u.role, u.avatar, u.interests as interest_tags,
+              u.created_at, u.deleted_at IS NOT NULL AS is_banned,
               up.showup_rate, up.total_joined, up.recent_pigeon_count
        FROM users u LEFT JOIN user_profiles up ON u.id = up.user_id
        ${where} ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,

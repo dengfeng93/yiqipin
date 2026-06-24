@@ -17,7 +17,9 @@ export class UserController {
   @Public()
   @Get(':id')
   async getUser(@Param('id') id: string) {
-    return this.userService.findById(id);
+    const user = await this.userService.findById(id);
+    const { wechat_openid, deleted_at, ...safe } = user as any;
+    return safe;
   }
 
   @UseGuards(JwtAuthGuard)

@@ -79,7 +79,7 @@ class _CircleDetailPageState extends State<CircleDetailPage> {
           IconButton(
             icon: const Icon(Icons.share_outlined),
             onPressed: () => Share.share(
-              '🏀 ${c['title']}\n📍 ${c['address'] ?? "附近"}\n👥 ${c['member_count'] ?? 0}/${c['max_members']}人\n\n一起来玩！下载"一起拼"App → yiqipin.cn',
+              '🏀 ${c['title']}\n📍 ${c['address'] ?? "附近"}\n👥 ${c['member_count'] ?? 0}/${c['max_members']}人\n\n一起来玩！下载"一起拼"App → https://yiqipin.cn',
               subject: c['title'],
             ),
           ),

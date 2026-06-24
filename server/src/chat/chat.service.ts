@@ -65,6 +65,13 @@ export class ChatService {
     return !!member;
   }
 
+  async isUserBlocked(userId: string): Promise<boolean> {
+    const [user] = await this.msgRepo.manager.query(
+      `SELECT id FROM users WHERE id = $1 AND deleted_at IS NOT NULL`, [userId]
+    );
+    return !!user;
+  }
+
   async recordViolation(userId: string, circleId: string, msgId: string | null, action: string, reason: string) {
     await this.msgRepo.manager.query(
       `INSERT INTO violation_records (user_id, circle_id, msg_id, action, reason)

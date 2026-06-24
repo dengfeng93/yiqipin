@@ -53,14 +53,23 @@ class Circle {
         distance: (json['distance'] as num?)?.toDouble(),
         memberCount: json['member_count'] ?? 0,
         maxMembers: json['max_members'] ?? 100,
-        startTime: DateTime.parse(json['start_time']),
+        startTime: _parseDate(json['start_time']),
         startType: json['start_type'] ?? 'now',
         prepTime: json['prep_time'] ?? 0,
         status: json['status'] ?? 'active',
         restrictTag: json['restrict_tag'] ?? 'all',
         groupRule: json['group_rule'],
-        createdAt: DateTime.parse(json['created_at']),
+        createdAt: _parseDate(json['created_at']),
       );
+
+  static DateTime _parseDate(dynamic val) {
+    if (val is String && val.isNotEmpty) {
+      try {
+        return DateTime.parse(val);
+      } catch (_) {}
+    }
+    return DateTime(1970);
+  }
 
   String get timeLabel {
     final diff = startTime.difference(DateTime.now());

@@ -49,11 +49,31 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
     try {
       final res = await _api.get('/categories');
       if (mounted) setState(() => _categories = List<Map<String, dynamic>>.from(res.data['data'] ?? []));
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) setState(() => _categories = []);
+    }
   }
 
   Future<void> _publish() async {
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先选择活动类型'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+    if (_title.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入圈子标题'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
     final loc = ref.read(locationProvider);
+    if (loc.lat == null || loc.lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('无法获取位置信息'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
     try {
       final res = await _api.post('/circles', data: {
         'category_id': _selectedCategoryId,

@@ -121,9 +121,15 @@ export class CircleService {
     const count = await this.memberRepo.count({ where: { circle_id: circleId } });
     if (count >= circle.max_members) throw new ForbiddenException('圈子已满');
 
-    await this.memberRepo.save(this.memberRepo.create({
-      circle_id: circleId, user_id: userId, is_anonymous: isAnonymous,
-    }));
+    // Use DB constraint as safety net against race condition
+    try {
+      await this.memberRepo.save(this.memberRepo.create({
+        circle_id: circleId, user_id: userId, is_anonymous: isAnonymous,
+      }));
+    } catch (e: any) {
+      if (e.code === '23505') throw new ForbiddenException('你已在该圈子中');
+      throw e;
+    }
 
     await this.chatGateway.broadcastSystem(circleId, 'member_joined', {
       user_id: userId,
@@ -146,8 +152,8 @@ export class CircleService {
 
   async dissolve(circleId: string, userId: string) {
     const circle = await this.findById(circleId);
-    if (circle.creator_id !== userId) throw new ForbiddenException('仅创建者可解散');
     if (circle.status === CircleStatus.DISSOLVED) throw new BadRequestException('圈子已解散');
+    if (circle.creator_id !== userId) throw new ForbiddenException('仅创建者可解散');
     circle.status = CircleStatus.DISSOLVED;
     circle.dissolved_at = new Date();
     await this.circleRepo.save(circle);
@@ -209,14 +215,13 @@ export class CircleService {
     const member = await this.memberRepo.findOne({
       where: { circle_id: circleId, user_id: userId },
     });
-    if (member?.checked_in) {
+    if (!member) throw new ForbiddenException('你不是圈子成员');
+    if (member.checked_in) {
       throw new BadRequestException('已经签到过了');
     }
 
-    await this.memberRepo.update(
-      { circle_id: circleId, user_id: userId },
-      { checked_in: true },
-    );
+    member.checked_in = true;
+    await this.memberRepo.save(member);
     return { checked_in: true };
   }
 

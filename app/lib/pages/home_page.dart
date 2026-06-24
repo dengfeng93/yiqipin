@@ -25,6 +25,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   int _nearbyUserCount = 0;
   int _todayCircleCount = 0;
   bool _loading = true;
+  Future<Map<String, dynamic>>? _emptyStateFuture;
 
   @override
   void initState() {
@@ -44,8 +45,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       final loc = ref.read(locationProvider);
       if (loc.lat == null) return;
       final res = await _api.get('/circles', params: {'lat': loc.lat, 'lng': loc.lng, 'range': 10});
-      final data = (res.data['data'] as List?) ?? [];
-      final meta = res.data['meta'] as Map<String, dynamic>? ?? {};
+      final payload = res.data['data'] as Map<String, dynamic>?;
+      final data = (payload?['data'] as List?) ?? [];
+      final meta = (payload?['meta'] as Map<String, dynamic>?) ?? {};
       if (mounted) {
         setState(() {
           _circles = data.map((j) => Circle.fromJson(j)).toList();
@@ -55,9 +57,11 @@ class _HomePageState extends ConsumerState<HomePage> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _loading = false; _error = '加载失败'; });
     }
   }
+
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +80,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
       ),
-      body: _loading
+      body: _error != null
+          ? Center(child: ErrorStateWidget(message: _error!, onRetry: _loadCircles))
+          : _loading
           ? Column(children: [
               if (_nearbyUserCount > 0 || _todayCircleCount > 0) _buildSocialProof(cs),
               const Expanded(child: SkeletonList(count: 3)),
@@ -125,8 +131,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
       bottomNavigationBar: BottomNav(currentIndex: _tabIndex, onTap: (i) {
         setState(() => _tabIndex = i);
-        if (i == 1) Navigator.pushNamed(context, '/messages');
-        if (i == 3) Navigator.pushNamed(context, '/profile');
+        if (i == 1) Navigator.pushReplacementNamed(context, '/messages');
+        if (i == 3) Navigator.pushReplacementNamed(context, '/profile');
       }),
     );
   }
@@ -169,8 +175,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildEmptyState(ColorScheme cs) {
+    _emptyStateFuture ??= _fetchEmptyStateData();
     return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchEmptyStateData(),
+      future: _emptyStateFuture,
       builder: (_, snapshot) {
         if (!snapshot.hasData) return const SkeletonList(count: 3);
 
@@ -202,8 +209,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                         FilledButton(
                           onPressed: () async {
-                            await _api.post('/wishes/${w['id']}/join');
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('+1 成功')));
+                            try {
+                              await _api.post('/wishes/${w['id']}/join');
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('+1 成功')));
+                            } catch (_) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('操作失败'), backgroundColor: AppColors.error));
+                            }
                           },
                           style: FilledButton.styleFrom(minimumSize: Size.zero, height: 36),
                           child: const Text('+1'),
@@ -250,11 +261,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     try {
       final wishRes = await _api.get('/wishes', params: {'status': 'waiting', 'limit': '5'});
       result['wishes'] = wishRes.data['data'] ?? [];
-    } catch (_) {}
+    } catch (_) {
+      result['wishes'] = [];
+    }
     try {
       final hotRes = await _api.get('/categories', params: {'hot': 'true'});
       result['hots'] = hotRes.data['data'] ?? [];
-    } catch (_) {}
+    } catch (_) {
+      result['hots'] = [];
+    }
     return result;
   }
 }

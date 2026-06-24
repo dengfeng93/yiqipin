@@ -26,7 +26,11 @@ export class NotificationService {
   }
 
   async markRead(userId: string, notifId: string) {
-    await this.notifRepo.update({ id: notifId, user_id: userId }, { is_read: true });
+    const result = await this.notifRepo.update(
+      { id: notifId, user_id: userId },
+      { is_read: true },
+    );
+    if (result.affected === 0) throw new Error('通知不存在');
   }
 
   async getUnreadCount(userId: string): Promise<number> {

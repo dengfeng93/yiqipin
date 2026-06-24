@@ -8,10 +8,10 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (keyword?: string) => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/v1/admin/users', { params: { keyword: search } });
+      const res = await axios.get('/api/v1/admin/users', { params: { keyword: keyword || search || undefined } });
       setUsers(res.data.data);
     } finally {
       setLoading(false);
@@ -23,9 +23,13 @@ export default function UserManagement() {
   }, []);
 
   const toggleBan = async (userId: string, banned: boolean) => {
-    await axios.patch(`/api/v1/admin/users/${userId}/ban`, { banned: !banned });
-    message.success(banned ? '已解封' : '已封禁');
-    fetchUsers();
+    try {
+      await axios.patch(`/api/v1/admin/users/${userId}/ban`, { banned: !banned });
+      message.success(banned ? '已解封' : '已封禁');
+      fetchUsers();
+    } catch {
+      message.error('操作失败');
+    }
   };
 
   const columns = [
@@ -92,7 +96,7 @@ export default function UserManagement() {
           placeholder="搜索用户"
           onSearch={(v) => {
             setSearch(v);
-            fetchUsers();
+            fetchUsers(v);
           }}
           enterButton={<SearchOutlined />}
         />

@@ -36,7 +36,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     try {
       final res = await _api.get('/categories');
       if (mounted) setState(() => _categories = List<Map<String, dynamic>>.from(res.data['data'] ?? []));
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) setState(() => _categories = []);
+    }
   }
 
   Future<void> _search(String q) async {

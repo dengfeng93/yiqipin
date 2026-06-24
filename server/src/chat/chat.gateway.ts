@@ -30,6 +30,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const token = client.handshake.query.token as string;
       const payload = jwt.verify(token, this.configService.get<string>('jwt.secret')!) as { sub: string };
+
+      const isBlocked = await this.chatService.isUserBlocked(payload.sub);
+      if (isBlocked) {
+        client.emit('error', { message: '账号已被限制' });
+        client.disconnect();
+        return;
+      }
+
       client.data.userId = payload.sub;
 
       const pingTimer = setInterval(() => {
@@ -53,7 +61,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.userSockets.set(payload.sub, new Set());
       }
       this.userSockets.get(payload.sub)!.add(client.id);
-    } catch {
+    } catch (e: any) {
+      if (e.name === 'TokenExpiredError' || e.name === 'JsonWebTokenError') {
+        client.emit('error', { message: '登录已过期，请重新登录' });
+      }
       client.disconnect();
     }
   }
