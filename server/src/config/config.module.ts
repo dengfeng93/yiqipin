@@ -1,5 +1,5 @@
 import { Module, Global } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import databaseConfig from './database.config';
 import redisConfig from './redis.config';
 import jwtConfig from './jwt.config';
@@ -14,6 +14,5 @@ import cosConfig from './cos.config';
       load: [databaseConfig, redisConfig, jwtConfig, cosConfig],
     }),
   ],
-  exports: [ConfigService],
 })
 export class AppConfigModule {}
