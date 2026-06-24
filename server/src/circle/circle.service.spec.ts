@@ -4,6 +4,7 @@ import { CircleService } from './circle.service';
 import { Circle } from './entities/circle.entity';
 import { CircleMember } from './entities/circle-member.entity';
 import { Category } from './entities/category.entity';
+import { WishItem } from '../wishpool/entities/wish-item.entity';
 import { RedisService } from '../redis/redis.service';
 
 describe('CircleService', () => {
@@ -11,6 +12,7 @@ describe('CircleService', () => {
   const mockCircleRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), createQueryBuilder: jest.fn() };
   const mockMemberRepo = { create: jest.fn(), save: jest.fn(), findOne: jest.fn(), count: jest.fn(), delete: jest.fn(), find: jest.fn(), update: jest.fn() };
   const mockCategoryRepo = { findOne: jest.fn(), find: jest.fn() };
+  const mockWishRepo = { createQueryBuilder: jest.fn() };
   const mockRedis = { zadd: jest.fn(), zrem: jest.fn() };
 
   beforeAll(async () => {
@@ -20,6 +22,7 @@ describe('CircleService', () => {
         { provide: getRepositoryToken(Circle), useValue: mockCircleRepo },
         { provide: getRepositoryToken(CircleMember), useValue: mockMemberRepo },
         { provide: getRepositoryToken(Category), useValue: mockCategoryRepo },
+        { provide: getRepositoryToken(WishItem), useValue: mockWishRepo },
         { provide: RedisService, useValue: mockRedis },
       ],
     }).compile();

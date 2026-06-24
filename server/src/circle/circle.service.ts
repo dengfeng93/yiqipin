@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Circle, CircleStatus, StartType, RestrictTag } from './entities/circle.entity';
 import { CircleMember } from './entities/circle-member.entity';
 import { Category } from './entities/category.entity';
+import { WishItem } from '../wishpool/entities/wish-item.entity';
 import { RedisService } from '../redis/redis.service';
 import { calculateDistance, locationToPoint } from '../common/utils/geo';
 import { CreateCircleDto } from './dto/create-circle.dto';
@@ -14,6 +15,7 @@ export class CircleService {
     @InjectRepository(Circle) private circleRepo: Repository<Circle>,
     @InjectRepository(CircleMember) private memberRepo: Repository<CircleMember>,
     @InjectRepository(Category) private categoryRepo: Repository<Category>,
+    @InjectRepository(WishItem) private wishRepo: Repository<WishItem>,
     private redis: RedisService,
   ) {}
 
@@ -203,5 +205,56 @@ export class CircleService {
     circle.range_km = newRange;
     await this.circleRepo.save(circle);
     return { circle_id: circleId, range_km: newRange };
+  }
+
+  async findCards(lat: number, lng: number, rangeKm: number = 10, filters?: {
+    category_id?: string; time_filter?: string;
+  }) {
+    const point = locationToPoint(lat, lng);
+    const rangeMeters = rangeKm * 1000;
+
+    let query = this.circleRepo.createQueryBuilder('c')
+      .where('ST_DWithin(c.location, ST_GeomFromText(:point, 0), :range)', { point, range: rangeMeters })
+      .andWhere('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
+      .andWhere('c.creator_id NOT IN (SELECT id FROM users WHERE is_incognito = true)')
+      .leftJoin('user_profiles', 'up', 'up.user_id = c.creator_id')
+      .select([
+        'c.id', 'c.creator_id', 'c.category_id', 'c.title', 'c.description',
+        'c.address', 'c.max_members', 'c.start_time', 'c.start_type',
+        'c.prep_time', 'c.status', 'c.restrict_tag', 'c.group_rule', 'c.created_at',
+        'up.showup_rate',
+      ])
+      .orderBy('c.start_time', 'ASC')
+      .addOrderBy('c.max_members', 'DESC')
+      .limit(30);
+
+    if (filters?.category_id) {
+      query = query.andWhere('c.category_id = :cid', { cid: filters.category_id });
+    }
+    if (filters?.time_filter === 'today') {
+      query = query.andWhere("c.start_time::date = CURRENT_DATE");
+    }
+
+    const circles = await query.getRawMany();
+
+    if (circles.length === 0) {
+      const wishes = await this.wishRepo.createQueryBuilder('w')
+        .where('ST_DWithin(w.location, ST_GeomFromText(:point, 0), :range)', { point, range: rangeMeters })
+        .andWhere('w.status = :status', { status: 'waiting' })
+        .leftJoin('categories', 'c', 'c.id = w.category_id')
+        .select('c.name', 'category_name')
+        .addSelect('c.icon', 'category_icon')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('c.name, c.icon')
+        .orderBy('count', 'DESC')
+        .getRawMany();
+
+      if (wishes.length > 0) {
+        return { type: 'wishpool', data: wishes };
+      }
+      return { type: 'empty', message: '附近暂无圈子，快来创建第一个吧！' };
+    }
+
+    return { type: 'circles', data: circles };
   }
 }

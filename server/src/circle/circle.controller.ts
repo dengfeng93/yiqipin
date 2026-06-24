@@ -74,4 +74,10 @@ export class CircleController {
   async expand(@Param('id') id: string, @CurrentUser() user: User) {
     return this.circleService.expandRange(id, user.id);
   }
+
+  @Public()
+  @Get('cards')
+  findCards(@Query() query: CircleQueryDto) {
+    return this.circleService.findCards(query.lat, query.lng, query.range || 10, query);
+  }
 }

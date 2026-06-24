@@ -7,9 +7,10 @@ import { CircleService } from './circle.service';
 import { Circle } from './entities/circle.entity';
 import { CircleMember } from './entities/circle-member.entity';
 import { Category } from './entities/category.entity';
+import { WishItem } from '../wishpool/entities/wish-item.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Circle, CircleMember, Category])],
+  imports: [TypeOrmModule.forFeature([Circle, CircleMember, Category, WishItem])],
   controllers: [CircleController, SearchController, CategoryController],
   providers: [CircleService],
   exports: [CircleService],
