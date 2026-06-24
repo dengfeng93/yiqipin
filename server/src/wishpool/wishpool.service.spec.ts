@@ -5,6 +5,7 @@ import { WishItem } from './entities/wish-item.entity';
 import { Category } from '../circle/entities/category.entity';
 import { RedisService } from '../redis/redis.service';
 import { CircleService } from '../circle/circle.service';
+import { ChatGateway } from '../chat/chat.gateway';
 
 describe('WishpoolService', () => {
   let service: WishpoolService;
@@ -12,6 +13,7 @@ describe('WishpoolService', () => {
   const mockCategoryRepo = { findOne: jest.fn() };
   const mockRedis = { lock: jest.fn(), unlock: jest.fn() };
   const mockCircleService = { create: jest.fn() };
+  const mockChatGateway = { broadcastSystem: jest.fn() };
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -21,6 +23,7 @@ describe('WishpoolService', () => {
         { provide: getRepositoryToken(Category), useValue: mockCategoryRepo },
         { provide: RedisService, useValue: mockRedis },
         { provide: CircleService, useValue: mockCircleService },
+        { provide: ChatGateway, useValue: mockChatGateway },
       ],
     }).compile();
     service = module.get<WishpoolService>(WishpoolService);

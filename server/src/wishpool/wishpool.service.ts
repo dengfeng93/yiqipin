@@ -5,6 +5,7 @@ import { WishItem, WishStatus } from './entities/wish-item.entity';
 import { Category } from '../circle/entities/category.entity';
 import { RedisService } from '../redis/redis.service';
 import { CircleService } from '../circle/circle.service';
+import { ChatGateway } from '../chat/chat.gateway';
 import { locationToPoint } from '../common/utils/geo';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class WishpoolService {
     @InjectRepository(Category) private categoryRepo: Repository<Category>,
     private redis: RedisService,
     private circleService: CircleService,
+    private chatGateway: ChatGateway,
   ) {}
 
   async listNearby(lat: number, lng: number, rangeKm: number = 10) {
@@ -81,7 +83,7 @@ export class WishpoolService {
           order: { created_at: 'ASC' },
         });
         if (firstWish) {
-          await this.circleService.create(firstWish.user_id, {
+          const circle = await this.circleService.create(firstWish.user_id, {
             category_id: categoryId,
             lat, lng,
             start_time: new Date(Date.now() + 2 * 3600000),
@@ -92,6 +94,11 @@ export class WishpoolService {
             { category_id: categoryId, status: WishStatus.WAITING },
             { status: WishStatus.FULFILLED } as any,
           );
+
+          await this.chatGateway.broadcastSystem(circle.id, 'wish_fulfilled', {
+            category_id: categoryId,
+            category_name: category.name,
+          });
         }
       }
     } finally {
