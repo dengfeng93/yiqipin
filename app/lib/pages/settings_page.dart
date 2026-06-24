@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -25,6 +26,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
     try {
       final res = await _api.get('/users/me');
       final user = res.data['data'];
@@ -32,11 +34,17 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() {
           _incognito = user['is_incognito'] ?? false;
           _phone = user['phone'] ?? '';
+          _msgNotify = prefs.getBool('notify_msg') ?? true;
+          _sysNotify = prefs.getBool('notify_sys') ?? true;
           _loading = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() {
+        _msgNotify = prefs.getBool('notify_msg') ?? true;
+        _sysNotify = prefs.getBool('notify_sys') ?? true;
+        _loading = false;
+      });
     }
   }
 
@@ -47,6 +55,18 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (_) {
       if (mounted) setState(() => _incognito = !v);
     }
+  }
+
+  Future<void> _setMsgNotify(bool v) async {
+    setState(() => _msgNotify = v);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notify_msg', v);
+  }
+
+  Future<void> _setSysNotify(bool v) async {
+    setState(() => _sysNotify = v);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notify_sys', v);
   }
 
   @override
@@ -71,13 +91,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: Text('消息通知', style: ts.bodyLarge),
                 subtitle: Text('圈子新消息推送', style: ts.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                 value: _msgNotify,
-                onChanged: (v) => setState(() => _msgNotify = v),
+                onChanged: _setMsgNotify,
               ),
               SwitchListTile(
                 title: Text('系统通知', style: ts.bodyLarge),
                 subtitle: Text('圈子状态变更提醒', style: ts.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                 value: _sysNotify,
-                onChanged: (v) => setState(() => _sysNotify = v),
+                onChanged: _setSysNotify,
               ),
               const _SectionTitle('账号'),
               ListTile(
