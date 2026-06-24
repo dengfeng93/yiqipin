@@ -10,7 +10,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final _api = ApiService();
-  final _auth = AuthService();
+  final _auth = AuthService(_api);
   bool _incognito = false;
   bool _msgNotify = true;
   bool _sysNotify = true;
@@ -25,27 +25,19 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     try {
       final res = await _api.get('/users/me');
-      final user = res.data['data'];
+      final user = res.data;
       if (mounted)
         setState(() {
           _incognito = user['is_incognito'] ?? false;
           _phone = user['phone'] ?? '';
-          _msgNotify = user['msg_notify'] ?? true;
-          _sysNotify = user['sys_notify'] ?? true;
         });
     } catch (_) {}
   }
 
   Future<void> _toggleIncognito(bool v) async {
     try {
-      await _api.patch('/users/me', {'is_incognito': v});
+      await _api.post('/users/me/incognito');
       setState(() => _incognito = v);
-    } catch (_) {}
-  }
-
-  Future<void> _toggleNotify(String field, bool v) async {
-    try {
-      await _api.patch('/users/me', {field: v});
     } catch (_) {}
   }
 
@@ -67,7 +59,6 @@ class _SettingsPageState extends State<SettingsPage> {
             value: _msgNotify,
             onChanged: (v) {
               setState(() => _msgNotify = v);
-              _toggleNotify('msg_notify', v);
             }),
         SwitchListTile(
             title: const Text('系统通知'),
@@ -75,7 +66,6 @@ class _SettingsPageState extends State<SettingsPage> {
             value: _sysNotify,
             onChanged: (v) {
               setState(() => _sysNotify = v);
-              _toggleNotify('sys_notify', v);
             }),
         const _SectionTitle('账号'),
         ListTile(

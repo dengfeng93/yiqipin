@@ -17,15 +17,18 @@ export class WishItem {
   @Column()
   category_id!: string;
 
-  @Column({ nullable: true })
+  @Column({ length: 200 })
   title!: string;
 
-  @Column('geography', { nullable: true })
+  @Column({ type: 'decimal', precision: 10, scale: 7 })
+  lat!: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7 })
+  lng!: number;
+
+  @Column('geography')
   @Index({ spatial: true })
   location!: string;
-
-  @Column({ type: 'decimal', precision: 3, scale: 1, default: 5 })
-  range_km!: number;
 
   @Column({ default: 3 })
   max_members!: number;

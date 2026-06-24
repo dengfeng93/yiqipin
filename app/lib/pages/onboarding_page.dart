@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/auth_provider.dart';
 import '../providers/location_provider.dart';
 import '../services/api_service.dart';
 
@@ -45,7 +44,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     await ref.read(locationProvider.notifier).getCurrentLocation();
     if (_selectedTags.isNotEmpty) {
       await _api.patch('/users/me',
-          {'interest_tags': _selectedTags.toList()});
+          {'interests': _selectedTags.toList()});
     }
     Navigator.pushReplacementNamed(context, '/login');
   }

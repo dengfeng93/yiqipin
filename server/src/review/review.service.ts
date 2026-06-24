@@ -35,7 +35,7 @@ export class ReviewService {
     return this.reviewRepo.find({ where: { target_user_id: userId }, order: { created_at: 'DESC' } });
   }
 
-  async createReport(reporterId: string, dto: { target_user_id?: string; circle_id?: string; type: string; reason: string; detail?: string; images?: string[] }) {
+  async createReport(reporterId: string, dto: { target_user_id?: string; circle_id?: string; type: string; reason: string; detail?: string }) {
     const report = this.reportRepo.create({ reporter_id: reporterId, ...dto });
     return this.reportRepo.save(report);
   }
@@ -54,7 +54,7 @@ export class ReviewService {
     if (!report) throw new NotFoundException('举报不存在');
     if (report.status !== 'pending') throw new BadRequestException('举报已处理');
 
-    report.status = action === 'confirm' ? 'banned' : 'dismissed';
+    report.status = action === 'confirm' ? 'reviewed' : 'dismissed';
     report.handled_by = handledBy;
     report.handled_at = new Date();
     await this.reportRepo.save(report);

@@ -41,7 +41,7 @@ export class Circle {
   @Column({ nullable: true })
   cover_image!: string;
 
-  @Column('geography', { nullable: true })
+  @Column('geography')
   @Index({ spatial: true })
   location!: string;
 

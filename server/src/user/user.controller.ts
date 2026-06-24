@@ -21,6 +21,19 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getMe(@CurrentUser() user: User) {
+    const profile = await this.userService.getProfile(user.id);
+    const { wechat_openid, deleted_at, ...safe } = user as any;
+    return {
+      ...safe,
+      total_created: profile?.total_created ?? 0,
+      total_joined: profile?.total_joined ?? 0,
+      showup_rate: profile?.showup_rate ?? 0,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('me')
   async updateMe(@CurrentUser() user: User, @Body() dto: UpdateUserDto) {
     return this.userService.updateMe(user.id, dto);

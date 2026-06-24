@@ -25,9 +25,6 @@ export class Report {
   @Column({ nullable: true })
   detail!: string;
 
-  @Column('simple-array', { nullable: true })
-  images!: string[];
-
   @Column({ default: 'pending' })
   @Index()
   status!: string;
