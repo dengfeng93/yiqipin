@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/error_state.dart';
 
 class WishpoolPage extends StatefulWidget {
   const WishpoolPage({super.key});
@@ -13,6 +14,7 @@ class _WishpoolPageState extends State<WishpoolPage> {
   final _api = ApiService();
   List<Map<String, dynamic>> _wishes = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -21,6 +23,7 @@ class _WishpoolPageState extends State<WishpoolPage> {
   }
 
   Future<void> _loadWishes() async {
+    setState(() { _loading = true; _error = null; });
     try {
       final res = await _api.get('/wishes', params: {'status': 'waiting'});
       if (mounted) {
@@ -30,7 +33,7 @@ class _WishpoolPageState extends State<WishpoolPage> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _loading = false; _error = '加载失败'; });
     }
   }
 
@@ -73,7 +76,9 @@ class _WishpoolPageState extends State<WishpoolPage> {
       appBar: AppBar(title: const Text('心愿池')),
       body: _loading
           ? const SkeletonList(count: 4)
-          : _wishes.isEmpty
+          : _error != null
+              ? Center(child: ErrorStateWidget(message: _error!, onRetry: _loadWishes))
+              : _wishes.isEmpty
               ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
