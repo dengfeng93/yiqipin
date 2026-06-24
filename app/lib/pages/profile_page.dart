@@ -69,10 +69,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     _buildStatsRow(cs, ts),
                     const SizedBox(height: AppSpacing.xxl),
                     _menuItem(Icons.circle_outlined, '我的圈子', () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('即将上线')));
+                      Navigator.pushNamed(context, '/messages');
                     }),
                     _menuItem(Icons.star_outline, '评价记录', () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('即将上线')));
+                      // TODO: /reviews page
+                      Navigator.pushNamed(context, '/messages');
                     }),
                     _menuItem(Icons.settings_outlined, '设置', () => Navigator.pushNamed(context, '/settings')),
                     const Divider(height: AppSpacing.xxxl),
