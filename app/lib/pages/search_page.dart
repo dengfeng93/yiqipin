@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/theme.dart';
 import '../services/api_service.dart';
 import '../providers/location_provider.dart';
+import '../widgets/skeleton_loader.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -11,10 +13,12 @@ class SearchPage extends ConsumerStatefulWidget {
 
 class _SearchPageState extends ConsumerState<SearchPage> {
   final _api = ApiService();
+  final _searchCtrl = TextEditingController();
   List<Map<String, dynamic>> _results = [];
   List<Map<String, dynamic>> _categories = [];
   String? _selectedCategory;
   bool _loading = false;
+  bool _hasSearched = false;
 
   @override
   void initState() {
@@ -22,82 +26,131 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     _loadCategories();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadCategories() async {
-    final res = await _api.get('/categories');
-    setState(() => _categories = List<Map<String, dynamic>>.from(
-        res.data['data'] ?? []));
+    try {
+      final res = await _api.get('/categories');
+      if (mounted) setState(() => _categories = List<Map<String, dynamic>>.from(res.data['data'] ?? []));
+    } catch (_) {}
   }
 
   Future<void> _search(String q) async {
     if (q.trim().isEmpty) return;
-    setState(() => _loading = true);
+    setState(() { _loading = true; _hasSearched = true; });
     final loc = ref.read(locationProvider);
     final params = <String, dynamic>{'q': q};
     if (loc.lat != null && loc.lng != null) {
       params['lat'] = loc.lat;
       params['lng'] = loc.lng;
     }
-    final res = await _api.get('/search', params: params);
-    setState(() {
-      _results = List<Map<String, dynamic>>.from(
-          res.data['data'] ?? []);
-      _loading = false;
-    });
+    if (_selectedCategory != null) params['category_id'] = _selectedCategory;
+    try {
+      final res = await _api.get('/search', params: params);
+      if (mounted) setState(() {
+        _results = List<Map<String, dynamic>>.from(res.data['data'] ?? []);
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final ts = Theme.of(context).textTheme;
+
     return Scaffold(
       appBar: AppBar(
-          title: TextField(
-        autofocus: true,
-        decoration: const InputDecoration(
-            hintText: '搜索圈子...', border: InputBorder.none),
-        onSubmitted: _search,
-      )),
+        title: TextField(
+          controller: _searchCtrl,
+          autofocus: true,
+          style: ts.bodyLarge,
+          decoration: InputDecoration(
+            hintText: '搜索圈子...',
+            border: InputBorder.none,
+            hintStyle: ts.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+          ),
+          onSubmitted: _search,
+        ),
+        actions: [
+          if (_searchCtrl.text.isNotEmpty)
+            IconButton(icon: const Icon(Icons.clear), onPressed: () {
+              _searchCtrl.clear();
+              setState(() { _results.clear(); _hasSearched = false; });
+            }),
+        ],
+      ),
       body: Column(children: [
-        SizedBox(
-            height: 40,
+        if (_categories.isNotEmpty)
+          SizedBox(
+            height: 44,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8),
-              children: _categories
-                  .map((c) => Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4),
-                        child: FilterChip(
-                          label: Text(c['name']),
-                          selected:
-                              _selectedCategory == c['id'],
-                          onSelected: (v) => setState(() {
-                            _selectedCategory =
-                                v ? c['id'] : null;
-                          }),
-                        ),
-                      ))
-                  .toList(),
-            )),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              children: _categories.map((c) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: FilterChip(
+                  label: Text(c['name'] ?? ''),
+                  selected: _selectedCategory == c['id'],
+                  onSelected: (v) => setState(() {
+                    _selectedCategory = v ? c['id'] : null;
+                    if (_searchCtrl.text.isNotEmpty) _search(_searchCtrl.text);
+                  }),
+                ),
+              )).toList(),
+            ),
+          ),
+        const Divider(height: 1),
         Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator())
-                : ListView.builder(
-                    itemCount: _results.length,
-                    itemBuilder: (_, i) {
-                      final r = _results[i];
-                      return ListTile(
-                        title: Text(r['title'] ?? ''),
-                        subtitle: Text(
-                            '${r['member_count'] ?? 0}人 · ${r['address'] ?? ""}'),
-                        trailing: const Icon(
-                            Icons.chevron_right),
-                        onTap: () => Navigator.pushNamed(
-                            context, '/circle-detail',
-                            arguments: r['id']),
-                      );
-                    },
-                  )),
+          child: _loading
+              ? const SkeletonList(count: 3)
+              : !_hasSearched
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search, size: 64, color: cs.onSurface.withOpacity(0.15)),
+                          const SizedBox(height: AppSpacing.lg),
+                          Text('搜索你感兴趣的圈子', style: ts.titleMedium?.copyWith(color: cs.onSurfaceVariant)),
+                        ],
+                      ),
+                    )
+                  : _results.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.search_off, size: 64, color: cs.onSurface.withOpacity(0.15)),
+                              const SizedBox(height: AppSpacing.lg),
+                              Text('没有找到相关圈子', style: ts.titleMedium?.copyWith(color: cs.onSurfaceVariant)),
+                              const SizedBox(height: AppSpacing.sm),
+                              Text('换个关键词试试', style: ts.bodyMedium?.copyWith(color: cs.onSurface.withOpacity(0.4))),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _results.length,
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                          itemBuilder: (_, i) {
+                            final r = _results[i];
+                            return ListTile(
+                              title: Text(r['title'] ?? '', style: ts.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
+                              subtitle: Text(
+                                '${r['member_count'] ?? 0}人 · ${r['address'] ?? ""}',
+                                style: ts.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                              ),
+                              trailing: Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+                              onTap: () => Navigator.pushNamed(context, '/circle-detail', arguments: r['id']),
+                            );
+                          },
+                        ),
+        ),
       ]),
     );
   }

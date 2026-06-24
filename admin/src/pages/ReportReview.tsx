@@ -32,12 +32,12 @@ export default function ReportReview() {
   const statusColors: Record<string, string> = {
     pending: 'orange',
     dismissed: 'default',
-    banned: 'red',
+    reviewed: 'red',
   };
   const statusLabels: Record<string, string> = {
     pending: '待处理',
     dismissed: '已驳回',
-    banned: '已封禁',
+    reviewed: '已审核',
   };
 
   const columns = [

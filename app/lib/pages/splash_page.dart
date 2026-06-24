@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
@@ -26,23 +27,29 @@ class _SplashPageState extends ConsumerState<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final ts = Theme.of(context).textTheme;
     return Scaffold(
       body: Center(
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-            Icon(Icons.groups,
-                size: 80, color: Theme.of(context).primaryColor),
-            const SizedBox(height: 16),
-            Text('一起拼',
-                style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor)),
-            const SizedBox(height: 8),
-            const Text('随时拼 一起玩',
-                style: TextStyle(fontSize: 14, color: Colors.grey)),
-          ])),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+              ),
+              child: Icon(Icons.groups, size: 48, color: cs.primary),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text('一起拼', style: ts.displayMedium?.copyWith(color: cs.primary)),
+            const SizedBox(height: AppSpacing.sm),
+            Text('随时拼 一起玩', style: ts.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+          ],
+        ),
+      ),
     );
   }
 }

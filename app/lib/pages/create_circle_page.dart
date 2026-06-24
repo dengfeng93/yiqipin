@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/theme.dart';
 import '../services/api_service.dart';
 import '../providers/location_provider.dart';
 
@@ -27,6 +28,17 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
   String _title = '';
   String _description = '';
 
+  final _iconMap = const {
+    'basketball': Icons.sports_basketball, 'football': Icons.sports_soccer,
+    'badminton': Icons.sports_tennis, 'running': Icons.directions_run,
+    'board_game': Icons.extension, 'dinner': Icons.restaurant,
+    'movie': Icons.movie, 'coffee': Icons.local_cafe,
+    'study': Icons.menu_book, 'travel': Icons.flight,
+    'singing': Icons.music_note, 'shopping': Icons.shopping_bag,
+    'pet': Icons.pets, 'fitness': Icons.fitness_center,
+    'photo': Icons.camera_alt, 'other': Icons.more_horiz,
+  };
+
   @override
   void initState() {
     super.initState();
@@ -34,12 +46,13 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
   }
 
   Future<void> _loadCategories() async {
-    final res = await _api.get('/categories');
-    setState(() => _categories =
-        List<Map<String, dynamic>>.from(res.data['data'] ?? []));
+    try {
+      final res = await _api.get('/categories');
+      if (mounted) setState(() => _categories = List<Map<String, dynamic>>.from(res.data['data'] ?? []));
+    } catch (_) {}
   }
 
-  void _publish() async {
+  Future<void> _publish() async {
     final loc = ref.read(locationProvider);
     try {
       final res = await _api.post('/circles', data: {
@@ -56,74 +69,59 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
         'group_rule': _groupRule,
       });
       final circleId = res.data['data']['id'];
-      Navigator.pushReplacementNamed(context, '/circle-detail',
-          arguments: circleId);
+      if (mounted) Navigator.pushReplacementNamed(context, '/circle-detail', arguments: circleId);
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('发布失败: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('发布失败: $e'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final ts = Theme.of(context).textTheme;
+
     return Scaffold(
       appBar: AppBar(title: Text('创建圈子 — 第$_step步')),
-      body: _step == 1
-          ? _buildStep1()
-          : _step == 2
-              ? _buildStep2()
-              : _buildStep3(),
+      body: _step == 1 ? _buildStep1(cs) : _step == 2 ? _buildStep2(cs, ts) : _buildStep3(cs, ts),
       bottomNavigationBar: _step > 1
           ? SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Row(children: [
                   Expanded(
-                      child: OutlinedButton(
-                          onPressed: () => setState(() => _step--),
-                          child: const Text('上一步'))),
-                  const SizedBox(width: 16),
+                    child: OutlinedButton(
+                      onPressed: () => setState(() => _step--),
+                      child: const Text('上一步'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.lg),
                   Expanded(
-                      child: FilledButton(
-                    onPressed: _step == 3
-                        ? _publish
-                        : () => setState(() => _step++),
-                    child: Text(_step == 3 ? '确认发布' : '下一步'),
-                  )),
+                    child: FilledButton(
+                      onPressed: _step == 3 ? _publish : () => setState(() => _step++),
+                      child: Text(_step == 3 ? '确认发布' : '下一步'),
+                    ),
+                  ),
                 ]),
-              ))
+              ),
+            )
           : null,
     );
   }
 
-  Widget _buildStep1() {
-    final icons = {
-      'basketball': Icons.sports_basketball,
-      'football': Icons.sports_soccer,
-      'badminton': Icons.sports_tennis,
-      'running': Icons.directions_run,
-      'board_game': Icons.extension,
-      'dinner': Icons.restaurant,
-      'movie': Icons.movie,
-      'coffee': Icons.local_cafe,
-      'study': Icons.menu_book,
-      'travel': Icons.flight,
-      'singing': Icons.music_note,
-      'shopping': Icons.shopping_bag,
-      'pet': Icons.pets,
-      'fitness': Icons.fitness_center,
-      'photo': Icons.camera_alt,
-      'other': Icons.more_horiz,
-    };
-
+  Widget _buildStep1(ColorScheme cs) {
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4, mainAxisSpacing: 12, crossAxisSpacing: 12),
+        crossAxisCount: 4, mainAxisSpacing: AppSpacing.md, crossAxisSpacing: AppSpacing.md,
+      ),
       itemCount: _categories.length,
       itemBuilder: (_, i) {
         final cat = _categories[i];
-        final icon = icons[cat['icon']] ?? Icons.circle;
+        final icon = _iconMap[cat['icon']] ?? Icons.circle;
         final selected = _selectedCategoryId == cat['id'];
         return GestureDetector(
           onTap: () => setState(() {
@@ -134,158 +132,133 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
           }),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             CircleAvatar(
-                radius: 28,
-                backgroundColor:
-                    selected ? Colors.orange : Colors.grey[200],
-                child: Icon(icon,
-                    color: selected ? Colors.white : Colors.grey[700])),
-            const SizedBox(height: 4),
-            Text(cat['name'],
-                style: TextStyle(
-                    fontSize: 12,
-                    color: selected ? Colors.orange : Colors.black87)),
+              radius: 28,
+              backgroundColor: selected ? cs.primary : cs.surfaceContainerHighest,
+              child: Icon(icon, color: selected ? cs.onPrimary : cs.onSurfaceVariant, size: 24),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              cat['name'] ?? '',
+              style: TextStyle(fontSize: 12, color: selected ? cs.primary : cs.onSurface),
+            ),
           ]),
         );
       },
     );
   }
 
-  Widget _buildStep2() {
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      const Text('活动时间',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 8),
-      SegmentedButton<String>(
-        segments: const [
-          ButtonSegment(value: 'now', label: Text('现在')),
-          ButtonSegment(value: 'today', label: Text('今天')),
-          ButtonSegment(value: 'tomorrow', label: Text('明天')),
-        ],
-        selected: {_startType},
-        onSelectionChanged: (v) => setState(() => _startType = v.first),
-      ),
-      const SizedBox(height: 20),
-      const Text('准备时间',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 8),
-      SegmentedButton<int>(
-        segments: const [
-          ButtonSegment(value: 5, label: Text('5分钟')),
-          ButtonSegment(value: 15, label: Text('15分钟')),
-          ButtonSegment(value: 30, label: Text('30分钟')),
-        ],
-        selected: {_prepTime},
-        onSelectionChanged: (v) => setState(() => _prepTime = v.first),
-      ),
-      const SizedBox(height: 20),
-      const Text('活动地点',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 8),
-      TextField(
-        decoration: const InputDecoration(
-            hintText: '自动定位，可手动修改',
-            border: OutlineInputBorder()),
-        onChanged: (v) => _address = v,
-      ),
-      const SizedBox(height: 20),
-      const Text('人数上限',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 8),
-      Row(children: [
-        IconButton(
-            onPressed: () => setState(() {
-                  if (_maxMembers > 2) _maxMembers -= 2;
-                }),
-            icon: const Icon(Icons.remove_circle_outline)),
-        Text('$_maxMembers',
-            style: const TextStyle(
-                fontSize: 24, fontWeight: FontWeight.bold)),
-        IconButton(
-            onPressed: () => setState(() {
-                  if (_maxMembers < 100) _maxMembers += 2;
-                }),
-            icon: const Icon(Icons.add_circle_outline)),
-      ]),
-      const SizedBox(height: 20),
-      const Text('限定标签',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 8),
-      SegmentedButton<String>(
-        segments: const [
-          ButtonSegment(value: 'all', label: Text('不限')),
-          ButtonSegment(value: 'female_only', label: Text('仅女性')),
-          ButtonSegment(value: 'newbie_only', label: Text('仅新手')),
-        ],
-        selected: {_restrictTag},
-        onSelectionChanged: (v) => setState(() => _restrictTag = v.first),
-      ),
-      if (_selectedCategoryName == '拼奶茶' ||
-          _selectedCategoryName == '拼外卖' ||
-          _selectedCategoryName == '拼车')
-        Padding(
-            padding: const EdgeInsets.only(top: 20),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('拼单规则（必填）',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    decoration: const InputDecoration(
-                        hintText: '如：到货后群内发AA收款码',
-                        border: OutlineInputBorder()),
-                    onChanged: (v) => _groupRule = v,
-                  ),
-                ])),
-    ]);
-  }
-
-  Widget _buildStep3() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('确认发布',
-                style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Row(children: [
-              const Text('类型: '),
-              Text(_selectedCategoryName ?? '')
+  Widget _buildStep2(ColorScheme cs, TextTheme ts) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        _sectionTitle('活动时间', ts),
+        const SizedBox(height: AppSpacing.sm),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(value: 'now', label: Text('现在')),
+            ButtonSegment(value: 'today', label: Text('今天')),
+            ButtonSegment(value: 'tomorrow', label: Text('明天')),
+          ],
+          selected: {_startType},
+          onSelectionChanged: (v) => setState(() => _startType = v.first),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        _sectionTitle('准备时间', ts),
+        const SizedBox(height: AppSpacing.sm),
+        SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(value: 5, label: Text('5分钟')),
+            ButtonSegment(value: 15, label: Text('15分钟')),
+            ButtonSegment(value: 30, label: Text('30分钟')),
+          ],
+          selected: {_prepTime},
+          onSelectionChanged: (v) => setState(() => _prepTime = v.first),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        _sectionTitle('活动地点', ts),
+        const SizedBox(height: AppSpacing.sm),
+        TextField(
+          decoration: const InputDecoration(hintText: '自动定位，可手动修改'),
+          onChanged: (v) => _address = v,
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        _sectionTitle('人数上限', ts),
+        const SizedBox(height: AppSpacing.sm),
+        Row(children: [
+          IconButton(
+            onPressed: () => setState(() { if (_maxMembers > 2) _maxMembers -= 2; }),
+            icon: const Icon(Icons.remove_circle_outline),
+          ),
+          Text('$_maxMembers', style: ts.headlineSmall),
+          IconButton(
+            onPressed: () => setState(() { if (_maxMembers < 100) _maxMembers += 2; }),
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+        ]),
+        const SizedBox(height: AppSpacing.xl),
+        _sectionTitle('限定标签', ts),
+        const SizedBox(height: AppSpacing.sm),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(value: 'all', label: Text('不限')),
+            ButtonSegment(value: 'female_only', label: Text('仅女性')),
+            ButtonSegment(value: 'newbie_only', label: Text('仅新手')),
+          ],
+          selected: {_restrictTag},
+          onSelectionChanged: (v) => setState(() => _restrictTag = v.first),
+        ),
+        if (_selectedCategoryName == '拼奶茶' || _selectedCategoryName == '拼外卖' || _selectedCategoryName == '拼车')
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xl),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _sectionTitle('拼单规则（必填）', ts, color: cs.error),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                decoration: const InputDecoration(hintText: '如：到货后群内发AA收款码'),
+                onChanged: (v) => _groupRule = v,
+              ),
             ]),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: const InputDecoration(
-                  labelText: '圈子标题', border: OutlineInputBorder()),
-              onChanged: (v) => _title = v,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: const InputDecoration(
-                  labelText: '描述（可选）',
-                  border: OutlineInputBorder()),
-              maxLines: 3,
-              onChanged: (v) => _description = v,
-            ),
-            const SizedBox(height: 16),
-            _buildSummaryRow('时间',
-                _startType == 'now' ? '现在' : _startType == 'today' ? '今天' : '明天'),
-            _buildSummaryRow('准备', '${_prepTime}分钟'),
-            _buildSummaryRow('人数', '$_maxMembers人'),
-          ]),
+          ),
+      ],
     );
   }
 
-  Widget _buildSummaryRow(String label, String value) {
+  Widget _buildStep3(ColorScheme cs, TextTheme ts) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('确认发布', style: ts.titleLarge),
+        const SizedBox(height: AppSpacing.lg),
+        _summaryRow('类型', _selectedCategoryName ?? '', cs, ts),
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          decoration: const InputDecoration(labelText: '圈子标题'),
+          onChanged: (v) => _title = v,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          decoration: const InputDecoration(labelText: '描述（可选）'),
+          maxLines: 3,
+          onChanged: (v) => _description = v,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _summaryRow('时间', _startType == 'now' ? '现在' : _startType == 'today' ? '今天' : '明天', cs, ts),
+        _summaryRow('准备', '${_prepTime}分钟', cs, ts),
+        _summaryRow('人数', '$_maxMembers人', cs, ts),
+      ]),
+    );
+  }
+
+  Widget _sectionTitle(String title, TextTheme ts, {Color? color}) {
+    return Text(title, style: ts.titleMedium?.copyWith(color: color));
+  }
+
+  Widget _summaryRow(String label, String value, ColorScheme cs, TextTheme ts) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
-        Text('$label: ', style: const TextStyle(color: Colors.grey)),
-        Text(value)
+        Text('$label: ', style: ts.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+        Text(value, style: ts.bodyMedium),
       ]),
     );
   }
