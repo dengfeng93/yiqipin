@@ -4,6 +4,8 @@ import { InjectRepository, InjectEntityManager } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { Circle } from '../circle/entities/circle.entity';
 import { RedisService } from '../redis/redis.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/entities/notification.entity';
 
 @Injectable()
 export class CircleSchedulerService {
@@ -13,6 +15,7 @@ export class CircleSchedulerService {
     @InjectRepository(Circle) private circleRepo: Repository<Circle>,
     @InjectEntityManager() private entityManager: EntityManager,
     private redis: RedisService,
+    private notificationService: NotificationService,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES)
@@ -74,10 +77,31 @@ export class CircleSchedulerService {
       `);
 
       for (const c of circles) {
-        this.logger.log(`Remind creator ${c.creator_id} to convert circle ${c.id}`);
+        await this.notificationService.create({
+          user_id: c.creator_id,
+          type: NotificationType.CIRCLE_WILL_END,
+          title: '圈子即将结束',
+          body: `"${c.title}"将在6小时后自动归档，是否转为永久搭子群？`,
+          data: { circle_id: c.id },
+        });
       }
     } finally {
       await this.redis.unlock('cron:permanent-reminder', lockToken);
+    }
+  }
+
+  @Cron('0 2 * * *')
+  async checkWishExpiry() {
+    const lockToken = await this.redis.lock('cron:wish-expiry', 59 * 60 * 1000);
+    if (!lockToken) return;
+
+    try {
+      await this.entityManager.query(`
+        UPDATE wish_items SET status = 'expired'
+        WHERE status = 'waiting' AND created_at + INTERVAL '24 hours' <= NOW()
+      `);
+    } finally {
+      await this.redis.unlock('cron:wish-expiry', lockToken);
     }
   }
 }

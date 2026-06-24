@@ -228,3 +228,15 @@ CREATE INDEX idx_reports_reporter ON reports(reporter_id);
 CREATE INDEX idx_reports_target_user ON reports(target_user_id);
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_incognito BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  type VARCHAR(50) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  body TEXT,
+  data JSONB DEFAULT '{}',
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_notifications_user_time ON notifications(user_id, created_at DESC);

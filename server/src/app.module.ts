@@ -15,6 +15,7 @@ import { WishpoolModule } from './wishpool/wishpool.module';
 import { ChatModule } from './chat/chat.module';
 import { UploadModule } from './upload/upload.module';
 import { ReviewModule } from './review/review.module';
+import { NotificationModule } from './notification/notification.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
@@ -42,6 +43,7 @@ import databaseConfig from './config/database.config';
     UploadModule,
     ReviewModule,
     AdminModule,
+    NotificationModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
