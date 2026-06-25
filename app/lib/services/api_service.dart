@@ -12,6 +12,15 @@ class ApiService {
   bool _isRefreshing = false;
   final _refreshQueue = <Completer<String?>>[];
 
+  /// Memory fallback for web where secure storage may not work
+  static String? _tokenFallback;
+
+  static void setTokenDirect(String token) {
+    _tokenFallback = token.replaceAll(RegExp(r'\s+'), '');
+  }
+
+  static String? get tokenFallback => _tokenFallback;
+
   ApiService._internal() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
@@ -21,7 +30,13 @@ class ApiService {
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _storage.read(key: 'access_token');
+        String? token = _tokenFallback;
+        if (token == null) {
+          try {
+            token = await _storage.read(key: 'access_token');
+            if (token != null) token = token.replaceAll(RegExp(r'\s+'), '');
+          } catch (_) {}
+        }
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
@@ -51,7 +66,8 @@ class ApiService {
     }
     _isRefreshing = true;
     try {
-      final refreshToken = await _storage.read(key: 'refresh_token');
+      final refreshToken =
+          (await _storage.read(key: 'refresh_token'))?.replaceAll(RegExp(r'\s+'), '');
       if (refreshToken == null) return null;
       final res = await Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
           .post('/auth/refresh', data: {'refreshToken': refreshToken});

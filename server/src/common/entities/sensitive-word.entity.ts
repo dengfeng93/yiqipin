@@ -1,9 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { Entity, PrimaryColumn, Column, BeforeInsert } from 'typeorm';
 
 @Entity('sensitive_words')
 export class SensitiveWord {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid' })
   id!: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = randomUUID();
+    }
+  }
 
   @Column({ length: 100, unique: true })
   word!: string;

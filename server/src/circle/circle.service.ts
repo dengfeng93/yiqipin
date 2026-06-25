@@ -41,6 +41,7 @@ export class CircleService {
         start_time: dto.start_time || new Date(),
         start_type: dto.start_type || StartType.NOW,
         prep_time: dto.prep_time || 0,
+        end_time: dto.end_time,
         restrict_tag: dto.restrict_tag || RestrictTag.ALL,
         group_rule: dto.group_rule,
         status: dto.prep_time && dto.prep_time > 0 ? CircleStatus.PREPARING : CircleStatus.ACTIVE,
@@ -53,7 +54,8 @@ export class CircleService {
 
       // Increment creator's total_created
       await manager.query(
-        `UPDATE user_profiles SET total_created = total_created + 1 WHERE user_id = $1`, [userId]
+        `INSERT INTO user_profiles (user_id, total_created) VALUES ($1, 1)
+         ON CONFLICT (user_id) DO UPDATE SET total_created = user_profiles.total_created + 1`, [userId]
       );
 
       return circle;
@@ -96,29 +98,33 @@ export class CircleService {
   async findNearby(lat: number, lng: number, rangeKm: number, filters: Partial<{
     category_id: string; time_filter: string; instant: number;
   }> = {}) {
-    const point = locationToPoint(lat, lng);
     const rangeMeters = rangeKm * 1000;
 
-    let query = this.circleRepo.createQueryBuilder('c')
-      .where(`ST_DWithin(c.location, ST_GeomFromText(:point, 0), :range)`, { point, range: rangeMeters })
-      .andWhere('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
+    let qb = this.circleRepo.createQueryBuilder('c')
+      .where('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
       .orderBy('c.start_time', 'ASC')
       .limit(50);
 
     if (filters.category_id) {
-      query = query.andWhere('c.category_id = :cid', { cid: filters.category_id });
+      qb = qb.andWhere('c.category_id = :cid', { cid: filters.category_id });
     }
     if (filters.instant === 1) {
-      query = query.andWhere("c.start_time <= NOW() + INTERVAL '1 hour'");
+      qb = qb.andWhere("c.start_time <= NOW() + INTERVAL '1 hour'");
     }
     if (filters.time_filter === 'today') {
-      query = query.andWhere("c.start_time::date = CURRENT_DATE");
+      qb = qb.andWhere("c.start_time::date = CURRENT_DATE");
     }
     if (filters.time_filter === 'tomorrow') {
-      query = query.andWhere("c.start_time::date = CURRENT_DATE + INTERVAL '1 day'");
+      qb = qb.andWhere("c.start_time::date = CURRENT_DATE + INTERVAL '1 day'");
     }
 
-    return query.getMany();
+    const circles = await qb.getMany();
+
+    return circles.filter((c) => {
+      const m = (c.location as string).match(/POINT\(([-\d.]+) ([-\d.]+)\)/i);
+      if (!m) return false;
+      return calculateDistance(lat, lng, parseFloat(m[2]), parseFloat(m[1])) <= rangeMeters;
+    });
   }
 
   async findById(id: string) {
@@ -305,14 +311,18 @@ export class CircleService {
 
   async search(keyword: string, lat: number, lng: number) {
     if (!keyword || keyword.trim().length === 0) return [];
-    const point = locationToPoint(lat, lng);
-    return this.circleRepo.createQueryBuilder('c')
-      .where('ST_DWithin(c.location, ST_GeomFromText(:point, 0), 10000)', { point })
-      .andWhere('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
+    const circles = await this.circleRepo.createQueryBuilder('c')
+      .where('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
       .andWhere('(c.title ILIKE :kw OR c.description ILIKE :kw)', { kw: `%${keyword.trim()}%` })
       .orderBy('c.start_time', 'ASC')
       .limit(30)
       .getMany();
+
+    return circles.filter((c) => {
+      const m = (c.location as string).match(/POINT\(([-\d.]+) ([-\d.]+)\)/i);
+      if (!m) return false;
+      return calculateDistance(lat, lng, parseFloat(m[2]), parseFloat(m[1])) <= 10000;
+    });
   }
 
   async getCategories() {
@@ -334,12 +344,10 @@ export class CircleService {
   async findCards(lat: number, lng: number, rangeKm: number = 10, filters?: {
     category_id?: string; time_filter?: string;
   }) {
-    const point = locationToPoint(lat, lng);
     const rangeMeters = rangeKm * 1000;
 
-    let query = this.circleRepo.createQueryBuilder('c')
-      .where('ST_DWithin(c.location, ST_GeomFromText(:point, 0), :range)', { point, range: rangeMeters })
-      .andWhere('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
+    let qb = this.circleRepo.createQueryBuilder('c')
+      .where('c.status IN (:...statuses)', { statuses: ['active', 'preparing'] })
       .andWhere('c.creator_id NOT IN (SELECT id FROM users WHERE is_incognito = true OR deleted_at IS NOT NULL)')
       .leftJoin('user_profiles', 'up', 'up.user_id = c.creator_id')
       .select([
@@ -353,27 +361,40 @@ export class CircleService {
       .limit(30);
 
     if (filters?.category_id) {
-      query = query.andWhere('c.category_id = :cid', { cid: filters.category_id });
+      qb = qb.andWhere('c.category_id = :cid', { cid: filters.category_id });
     }
     if (filters?.time_filter === 'today') {
-      query = query.andWhere("c.start_time::date = CURRENT_DATE");
+      qb = qb.andWhere("c.start_time::date = CURRENT_DATE");
     }
 
-    const circles = await query.getRawMany();
+    const raw = await qb.getRawMany();
+
+    const circles = raw.filter((row: any) => {
+      if (!row.c_location) return false;
+      const m = (row.c_location as string).match(/POINT\(([-\d.]+) ([-\d.]+)\)/i);
+      if (!m) return false;
+      return calculateDistance(lat, lng, parseFloat(m[2]), parseFloat(m[1])) <= rangeMeters;
+    });
 
     if (circles.length === 0) {
-      const wishes = await this.wishRepo.createQueryBuilder('w')
-        .where('ST_DWithin(w.location, ST_GeomFromText(:point, 0), :range)', { point, range: rangeMeters })
-        .andWhere('w.status = :status', { status: 'waiting' })
-        .leftJoin('categories', 'c', 'c.id = w.category_id')
-        .select('c.name', 'category_name')
-        .addSelect('c.icon', 'category_icon')
-        .addSelect('COUNT(*)', 'count')
-        .groupBy('c.name, c.icon')
-        .orderBy('count', 'DESC')
-        .getRawMany();
+      const allWishes = await this.wishRepo.find({ where: { status: 'waiting' as any } });
+      const nearbyWishes = allWishes.filter((w) => {
+        if (w.lat == null || w.lng == null) return false;
+        return calculateDistance(lat, lng, w.lat, w.lng) <= rangeMeters;
+      });
 
-      if (wishes.length > 0) {
+      if (nearbyWishes.length > 0) {
+        const categoryMap: Record<string, { name: string; icon: string; count: number }> = {};
+        for (const w of nearbyWishes) {
+          if (!w.category_id) continue;
+          if (!categoryMap[w.category_id]) {
+            categoryMap[w.category_id] = { name: w.category_id, icon: '', count: 0 };
+          }
+          categoryMap[w.category_id].count++;
+        }
+        const wishes = Object.values(categoryMap)
+          .sort((a, b) => b.count - a.count)
+          .map((v) => ({ category_name: v.name, category_icon: v.icon, count: v.count }));
         return { type: 'wishpool', data: wishes };
       }
       return { type: 'empty', message: '附近暂无圈子，快来创建第一个吧！' };

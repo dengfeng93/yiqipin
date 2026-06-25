@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, Index, ManyToOne, JoinColumn, BeforeInsert } from 'typeorm';
 
 export enum MessageType {
   TEXT = 'text',
@@ -9,8 +10,15 @@ export enum MessageType {
 @Entity('circle_messages')
 @Index(['circle_id', 'created_at'])
 export class CircleMessage {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid' })
   id!: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = randomUUID();
+    }
+  }
 
   @Column()
   circle_id!: string;

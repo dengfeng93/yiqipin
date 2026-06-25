@@ -37,7 +37,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     if (!mounted) return;
     if (_selectedTags.isNotEmpty) {
       try {
-        await _api.patch('/users/me', {'interests': _selectedTags.toList()});
+        await _api.patch('/users/me', data: {'interests': _selectedTags.toList()});
       } catch (_) {}
     }
     if (!mounted) return;
@@ -142,11 +142,15 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 margin: const EdgeInsets.all(4),
                 width: _currentPage == i ? 20 : 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  shape: _currentPage == i ? BoxShape.rectangle : BoxShape.circle,
-                  borderRadius: _currentPage == i ? BorderRadius.circular(4) : null,
-                  color: _currentPage == i ? cs.primary : cs.outlineVariant,
-                ),
+                decoration: _currentPage == i
+                    ? BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: cs.primary,
+                      )
+                    : BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: cs.outlineVariant,
+                      ),
               ),
             ),
           ),

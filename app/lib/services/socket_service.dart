@@ -22,7 +22,7 @@ class SocketService {
             .setQuery({'token': token})
             .build());
 
-    _socket!.onConnect((_) {
+    _socket!.on('connect', (_) {
       for (final entry in _lastSeen.entries) {
         _socket!.emit('pull_offline_msg', {
           'circle_id': entry.key,
@@ -30,7 +30,7 @@ class SocketService {
         });
       }
     });
-    _socket!.onDisconnect((_) => print('WS disconnected'));
+    _socket!.on('disconnect', (_) => print('WS disconnected'));
   }
 
   void joinCircle(String circleId) {
@@ -55,8 +55,8 @@ class SocketService {
   }
 
   void disconnect() {
-    _socket?.clearListeners();
-    _socket?.dispose();
+    _socket?.off('*');
+    _socket?.disconnect();
     _socket = null;
   }
 }

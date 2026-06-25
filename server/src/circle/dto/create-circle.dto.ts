@@ -33,6 +33,9 @@ export class CreateCircleDto {
   @IsOptional() @Type(() => Number) @IsInt()
   prep_time?: number = 0;
 
+  @IsOptional() @Type(() => Date)
+  end_time?: Date;
+
   @IsOptional() @IsEnum(StartType)
   start_type?: StartType = StartType.NOW;
 

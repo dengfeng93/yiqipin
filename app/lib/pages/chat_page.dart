@@ -72,8 +72,8 @@ class _ChatPageState extends State<ChatPage> {
         );
       }
     });
-    _socket.socket.onConnect((_) { if (mounted) setState(() => _connected = true); });
-    _socket.socket.onDisconnect((_) { if (mounted) setState(() => _connected = false); });
+    _socket.socket.on('connect', (_) { if (mounted) setState(() => _connected = true); });
+    _socket.socket.on('disconnect', (_) { if (mounted) setState(() => _connected = false); });
 
     try {
       final circleRes = await _api.get('/circles/${widget.circleId}');

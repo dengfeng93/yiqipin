@@ -9,7 +9,7 @@ class LocationState {
 }
 
 class LocationNotifier extends StateNotifier<LocationState> {
-  LocationNotifier() : super(LocationState());
+  LocationNotifier() : super(LocationState(lat: 30.5728, lng: 104.0668));
 
   Future<void> getCurrentLocation() async {
     state = LocationState(loading: true);

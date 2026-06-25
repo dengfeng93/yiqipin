@@ -19,7 +19,8 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
   List<Map<String, dynamic>> _categories = [];
 
   String _startType = 'now';
-  int _prepTime = 15;
+  late TimeOfDay _startTimeOfDay;
+  late TimeOfDay _endTimeOfDay;
   int _maxMembers = 10;
   String _address = '';
   String _restrictTag = 'all';
@@ -42,7 +43,25 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
   @override
   void initState() {
     super.initState();
+    final now = TimeOfDay.now();
+    _startTimeOfDay = now;
+    _endTimeOfDay = now.replacing(hour: (now.hour + 1) % 24);
     _loadCategories();
+  }
+
+  DateTime _buildDateTime(TimeOfDay tod) {
+    final now = DateTime.now();
+    DateTime date;
+    switch (_startType) {
+      case 'tomorrow':
+        date = now.add(const Duration(days: 1));
+        break;
+      case 'today':
+      default:
+        date = now;
+        break;
+    }
+    return DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
   }
 
   Future<void> _loadCategories() async {
@@ -84,7 +103,8 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
         'address': _address,
         'max_members': _maxMembers,
         'start_type': _startType,
-        'prep_time': _prepTime,
+        'start_time': _buildDateTime(_startTimeOfDay).toIso8601String(),
+        'end_time': _buildDateTime(_endTimeOfDay).toIso8601String(),
         'restrict_tag': _restrictTag,
         'group_rule': _groupRule,
       });
@@ -200,16 +220,26 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
           onSelectionChanged: (v) => setState(() => _startType = v.first),
         ),
         const SizedBox(height: AppSpacing.xl),
-        _sectionTitle('准备时间', ts),
+        _sectionTitle('开始时间', ts),
         const SizedBox(height: AppSpacing.sm),
-        SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(value: 5, label: Text('5分钟')),
-            ButtonSegment(value: 15, label: Text('15分钟')),
-            ButtonSegment(value: 30, label: Text('30分钟')),
-          ],
-          selected: {_prepTime},
-          onSelectionChanged: (v) => setState(() => _prepTime = v.first),
+        ListTile(
+          title: Text(_startTimeOfDay.format(context)),
+          trailing: const Icon(Icons.access_time),
+          onTap: () async {
+            final t = await showTimePicker(context: context, initialTime: _startTimeOfDay);
+            if (t != null) setState(() => _startTimeOfDay = t);
+          },
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        _sectionTitle('结束时间', ts),
+        const SizedBox(height: AppSpacing.sm),
+        ListTile(
+          title: Text(_endTimeOfDay.format(context)),
+          trailing: const Icon(Icons.access_time),
+          onTap: () async {
+            final t = await showTimePicker(context: context, initialTime: _endTimeOfDay);
+            if (t != null) setState(() => _endTimeOfDay = t);
+          },
         ),
         const SizedBox(height: AppSpacing.xl),
         _sectionTitle('活动地点', ts),
@@ -279,8 +309,7 @@ class _CreateCirclePageState extends ConsumerState<CreateCirclePage> {
           onChanged: (v) => _description = v,
         ),
         const SizedBox(height: AppSpacing.lg),
-        _summaryRow('时间', _startType == 'now' ? '现在' : _startType == 'today' ? '今天' : '明天', cs, ts),
-        _summaryRow('准备', '${_prepTime}分钟', cs, ts),
+        _summaryRow('时间', '${_startTimeOfDay.format(context)} - ${_endTimeOfDay.format(context)}', cs, ts),
         _summaryRow('人数', '$_maxMembers人', cs, ts),
       ]),
     );

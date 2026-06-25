@@ -13,7 +13,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectRepository(User) private userRepo: Repository<User>,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: (req) => {
+        const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+        return token?.replaceAll(/\s+/g, '') ?? null;
+      },
       ignoreExpiration: false,
       secretOrKey: config.get<string>('jwt.secret') || (() => { throw new Error('JWT secret not configured'); })(),
     });

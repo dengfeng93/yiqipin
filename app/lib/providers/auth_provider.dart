@@ -29,7 +29,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> login() async {
     // Try WeChat login flow; placeholder for now
-    final token = await _storage.read(key: 'access_token');
+    final token = (await _storage.read(key: 'access_token'))?.replaceAll(RegExp(r'\s+'), '');
     if (token != null) {
       try {
         final res = await _api.get('/auth/me');
@@ -47,7 +47,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> refreshToken() async {
-    final rt = await _storage.read(key: 'refresh_token');
+    final rt = (await _storage.read(key: 'refresh_token'))?.replaceAll(RegExp(r'\s+'), '');
     if (rt == null) return false;
     try {
       final res = await _api.post('/auth/refresh', data: {'refreshToken': rt});
@@ -74,9 +74,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> checkAuth() async {
-    final token = await _storage.read(key: 'access_token');
+    String? token = ApiService.tokenFallback;
+    if (token == null) {
+      try {
+        token = (await _storage.read(key: 'access_token'))?.replaceAll(RegExp(r'\s+'), '');
+      } catch (_) {}
+    }
     if (token != null) {
       try {
+        ApiService.setTokenDirect(token);
         final res = await _api.get('/auth/me');
         state = AuthState(isLoggedIn: true, user: res.data['data']);
       } catch (_) {

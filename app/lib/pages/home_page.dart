@@ -232,7 +232,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                               if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('操作失败'), backgroundColor: AppColors.error));
                             }
                           },
-                          style: FilledButton.styleFrom(minimumSize: Size.zero, height: 36),
+                          style: FilledButton.styleFrom(minimumSize: const Size(0, 36)),
                           child: const Text('+1'),
                         ),
                       ]),
@@ -248,12 +248,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             const EmptyStateWidget(icon: Icons.inbox, title: '附近暂无圈子和心愿单', subtitle: '试试这些热门活动'),
             ...hots.map((h) => Card(
                   child: ListTile(
-                    leading: Icon(Icons.local_fire_department, color: AppColors.error),
-                    title: Text(h['title'] ?? ''),
-                    subtitle: Text(h['description'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
+                    leading: Text(h['icon'] ?? '🔥', style: const TextStyle(fontSize: 24)),
+                    title: Text(h['name'] ?? ''),
+                    subtitle: Text('${h['wish_threshold'] ?? 3}人响应即成局', maxLines: 1, overflow: TextOverflow.ellipsis),
                     trailing: FilledButton(
                       onPressed: () => Navigator.pushNamed(context, '/create-circle'),
-                      style: FilledButton.styleFrom(minimumSize: Size.zero, height: 36),
+                      style: FilledButton.styleFrom(minimumSize: const Size(0, 36)),
                       child: const Text('发起'),
                     ),
                   ),

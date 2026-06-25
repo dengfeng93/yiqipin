@@ -14,14 +14,6 @@ export class UserController {
     private notificationService: NotificationService,
   ) {}
 
-  @Public()
-  @Get(':id')
-  async getUser(@Param('id') id: string) {
-    const user = await this.userService.findById(id);
-    const { wechat_openid, deleted_at, phone, muted_until, ...safe } = user as any;
-    return safe;
-  }
-
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getMe(@CurrentUser() user: User) {
@@ -33,6 +25,14 @@ export class UserController {
       total_joined: profile?.total_joined ?? 0,
       showup_rate: profile?.showup_rate ?? 0,
     };
+  }
+
+  @Public()
+  @Get(':id')
+  async getUser(@Param('id') id: string) {
+    const user = await this.userService.findById(id);
+    const { wechat_openid, deleted_at, phone, muted_until, ...safe } = user as any;
+    return safe;
   }
 
   @UseGuards(JwtAuthGuard)

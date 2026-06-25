@@ -114,7 +114,7 @@ class _WishpoolPageState extends State<WishpoolPage> {
                                   onPressed: () => _joinWish(w['id']),
                                   icon: const Icon(Icons.thumb_up, size: 18),
                                   label: const Text('我也想去'),
-                                  style: FilledButton.styleFrom(minimumSize: Size.zero, height: 36),
+                                  style: FilledButton.styleFrom(minimumSize: const Size(0, 36)),
                                 ),
                               ]),
                               const SizedBox(height: AppSpacing.sm),

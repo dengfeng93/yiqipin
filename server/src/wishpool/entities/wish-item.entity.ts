@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, BeforeInsert } from 'typeorm';
 
 export enum WishStatus {
   WAITING = 'waiting',
@@ -9,8 +10,15 @@ export enum WishStatus {
 
 @Entity('wish_items')
 export class WishItem {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid' })
   id!: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = randomUUID();
+    }
+  }
 
   @Column()
   user_id!: string;
@@ -27,8 +35,7 @@ export class WishItem {
   @Column({ type: 'decimal', precision: 10, scale: 7 })
   lng!: number;
 
-  @Column('geography')
-  @Index({ spatial: true })
+  @Column('text')
   location!: string;
 
   @Column({ default: 10 })

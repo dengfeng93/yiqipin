@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -30,8 +31,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _tryAutoLogin() async {
-    final token = await _storage.read(key: 'access_token');
+    String? token = ApiService.tokenFallback;
+    if (token == null) {
+      try {
+        token = (await _storage.read(key: 'access_token'))?.replaceAll(RegExp(r'\s+'), '');
+      } catch (_) {}
+    }
     if (token != null && mounted) {
+      ApiService.setTokenDirect(token);
       await ref.read(authProvider.notifier).checkAuth();
       if (mounted) {
         final isLoggedIn = ref.read(authProvider).isLoggedIn;
@@ -43,13 +50,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _login() async {
-    final token = _tokenCtrl.text.trim();
+    final token = _tokenCtrl.text.trim().replaceAll(RegExp(r'\s+'), '');
     if (token.isEmpty) {
       setState(() => _error = '请输入 Token');
       return;
     }
     setState(() { _submitting = true; _error = null; });
     try {
+      ApiService.setTokenDirect(token);
       await _storage.write(key: 'access_token', value: token);
       await ref.read(authProvider.notifier).checkAuth();
       if (mounted) {
@@ -81,7 +89,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                Container(
                   width: 88,
                   height: 88,
                   decoration: BoxDecoration(

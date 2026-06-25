@@ -1,9 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, BeforeInsert } from 'typeorm';
 
 @Entity('categories')
 export class Category {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid' })
   id!: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = randomUUID();
+    }
+  }
 
   @Column({ length: 30 })
   name!: string;

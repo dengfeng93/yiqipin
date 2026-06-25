@@ -326,8 +326,8 @@ ThemeData _buildTheme(ColorScheme colorScheme) {
 
     // Page transitions
     pageTransitionsTheme: const PageTransitionsTheme(builders: {
-      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.android: ZoomPageTransitionsBuilder(),
+      TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
     }),
 
     // Extensions

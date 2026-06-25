@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, Index, BeforeInsert } from 'typeorm';
 
 export enum NotificationType {
   CIRCLE_WILL_END = 'circle_will_end',
@@ -10,8 +11,15 @@ export enum NotificationType {
 @Entity('notifications')
 @Index(['user_id', 'created_at'])
 export class Notification {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid' })
   id!: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = randomUUID();
+    }
+  }
 
   @Column()
   user_id!: string;

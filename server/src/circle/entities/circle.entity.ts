@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn, BeforeInsert } from 'typeorm';
 
 export enum CircleStatus {
   ACTIVE = 'active',
@@ -23,8 +24,15 @@ export enum RestrictTag {
 
 @Entity('circles')
 export class Circle {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid' })
   id!: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = randomUUID();
+    }
+  }
 
   @Column()
   creator_id!: string;
@@ -41,8 +49,7 @@ export class Circle {
   @Column({ nullable: true })
   cover_image!: string;
 
-  @Column('geography')
-  @Index({ spatial: true })
+  @Column('text')
   location!: string;
 
   @Column({ nullable: true })
@@ -59,6 +66,9 @@ export class Circle {
 
   @Column({ default: 0 })
   prep_time!: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  end_time!: Date;
 
   @Column({ type: 'enum', enum: StartType, default: StartType.NOW })
   start_type!: StartType;

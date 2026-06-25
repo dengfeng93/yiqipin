@@ -99,7 +99,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           _statCell('发起', '${_stats?['total_created'] ?? 0}', ts),
           _statCell('参与', '${_stats?['total_joined'] ?? 0}', ts),
           _statCell('到场率',
-              _stats?['showup_rate'] != null ? "${(_stats!['showup_rate'] as num * 100).toStringAsFixed(0)}%" : '-', ts),
+              () { final r = _stats?['showup_rate']; return r is num ? "${(r * 100).toStringAsFixed(0)}%" : '-'; }(), ts),
         ],
       ),
     );

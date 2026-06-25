@@ -13,6 +13,7 @@ import '../pages/settings_page.dart';
 import '../pages/wishpool_page.dart';
 import '../pages/search_page.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/error_state.dart';
 
 class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
